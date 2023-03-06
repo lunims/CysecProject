@@ -145,10 +145,13 @@ class TypeInferer(ast.NodeVisitor):
         return None
 
     def visit_Return(self, node: ast.Return):
+        self.constraints += '('
         self.visit(node.value)
+        self.constraints += ')'
         return None
 
     def visit_Assign(self, node: ast.Assign):
+        self.constraints += '('
         flag = False
         for v in node.targets:
             if flag:
@@ -156,9 +159,11 @@ class TypeInferer(ast.NodeVisitor):
             self.visit(v)
             self.constraints += ' == '
             self.visit(node.value)
+        self.constraints += ')'
         return None
 
     def visit_Match(self, node: ast.Match):
+        self.constraints += '('
         flag = False
         for i in node.cases:
             if flag:
@@ -167,6 +172,7 @@ class TypeInferer(ast.NodeVisitor):
             self.constraints += ' == '
             self.visit(i)
             flag = True
+        self.constraints += ')'
         return None
 
     def visit_Try(self, node: ast.Try):
@@ -190,6 +196,7 @@ class TypeInferer(ast.NodeVisitor):
         return None
 
     def visit_BoolOp(self, node: ast.BoolOp):
+        self.constraints += '('
         self.visit(node.values[0])
         for v in node.values[1:]:
             if ast.dump(node.op) == 'And()':
@@ -197,6 +204,7 @@ class TypeInferer(ast.NodeVisitor):
             else:
                 self.constraints += ' Or '
             self.visit(v)
+        self.constraints += ')'
         return None
 
     def visit_NamedExpr(self, node: ast.NamedExpr):
@@ -204,6 +212,7 @@ class TypeInferer(ast.NodeVisitor):
         return None
 
     def visit_BinOp(self, node: ast.BinOp):
+        self.constraints += '('
         self.visit(node.left)
         t = ast.dump(node.op)
         if t == 'Add()':
@@ -233,9 +242,11 @@ class TypeInferer(ast.NodeVisitor):
         if t == 'FloorDiv()':
             self.constraints += ' // '
         self.visit(node.right)
+        self.constraints += ')'
         return None
 
     def visit_UnaryOp(self, node: ast.UnaryOp):
+        self.constraints += '('
         u = ast.dump(node.op)
         if u == 'Invert()':
             self.constraints += ' ~'
@@ -246,14 +257,21 @@ class TypeInferer(ast.NodeVisitor):
         if u == 'USub()':
             self.constraints += ' -'
         self.visit(node.operand)
+        self.constraints += ')'
         return None
 
     def visit_IfExp(self, node: ast.IfExp):
+        self.constraints += '('
         self.visit(node.test)
+        self.constraints += ')'
         self.constraints += ' AND '
+        self.constraints += '('
         self.visit(node.body)
+        self.constraints += ')'
         self.constraints += ' OR '
+        self.constraints += '('
         self.visit(node.orelse)
+        self.constraints += ')'
         return None
 #TODO: Klammern setzen und Constraints einfügen und überprüfen
 
