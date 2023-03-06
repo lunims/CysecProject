@@ -6,21 +6,22 @@ from isla.solver import ISLaSolver
 class TypeInferer(ast.NodeVisitor):
     def __init__(self):
         self.constraints = ''
-        self.grammar = GRAMMAR = {
-            "<start>": ["<string>"],
-            "<string>": ["<letter>", "<string><letter>"],
-            "<letter>": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k",
-                         "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v",
-                         "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G",
-                         "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R",
-                         "S", "T", "U", "V", "W", "X", "Y", "Z"],
-        }
+        self.name = ''
+        self.variables = set()
 
+    def getName(self):
+        return self.name
+
+    def getVariables(self):
+        return self.variables
     def entrance(self, node: ast):
         self.visit(node)
         return self.constraints
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
+        for arg in node.args.args:
+            self.name = arg
+            break
         flag = False
         for n in node.body:
             if flag:
@@ -73,16 +74,24 @@ class TypeInferer(ast.NodeVisitor):
         return None
 
     def visit_Constant(self, node: ast.Constant):
-        self.constraints += str(node.value)
+        if isinstance(node.value, str):
+            self.constraints += "'"
+            self.constraints += str(node.value)
+            self.constraints += "'"
+        else:
+            self.constraints += str(node.value)
         return None
 
     def visit_Name(self, node: ast.Name):
+        self.variables.add(node.id)
         self.constraints += node.id
         return None
 
     def visit_Subscript(self, node: ast.Subscript):
         self.visit(node.value)
+        self.constraints += '.charAt('
         self.visit(node.slice)
+        self.constraints += ')'
         return None
 
     def visit_Assert(self, node: ast.Assert):
@@ -157,7 +166,7 @@ class TypeInferer(ast.NodeVisitor):
             if flag:
                 self.constraints += ' AND '
             self.visit(v)
-            self.constraints += ' == '
+            self.constraints += ' = '
             self.visit(node.value)
         self.constraints += ')'
         return None
@@ -273,19 +282,20 @@ class TypeInferer(ast.NodeVisitor):
         self.visit(node.orelse)
         self.constraints += ')'
         return None
-#TODO: Klammern setzen und Constraints einfügen und überprüfen
+
+    def visit_Attribute(self, node: ast.Attribute):
+        self.visit(node.value)
+        self.constraints += '.' + node.attr
+        return None
 
 
 if __name__ == '__main__':
     teststr = '''\
-if s[0] == 'a':
-    assert len(s, XXX) == 1
-    if True:
-        x = 1
+def test(s):
+    if s[0] == 'a':
+        assert len(s) == 1
     else:
-        x = 2
-else:
-    assert s[1] == 'b'
+        assert s[1] == 'b'
 '''
     ti = TypeInferer()
     print(ti.entrance(ast.parse(teststr)))
