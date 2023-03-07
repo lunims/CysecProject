@@ -20,7 +20,7 @@ class TypeInferer(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         for arg in node.args.args:
-            self.name = arg
+            self.name = arg.arg
             break
         flag = False
         for n in node.body:
@@ -295,6 +295,8 @@ def test(s):
     if s[0] == 'a':
         assert len(s) == 1
     else:
+        x = 5
+        s[0] = x
         assert s[1] == 'b'
 '''
     ti = TypeInferer()
