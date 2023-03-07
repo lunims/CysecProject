@@ -81,6 +81,81 @@ class ConstraintSolver:
                         useful.add(v)
         return useful
 
+    def updateVariables(self):
+        print(self.variables)
+        collector = self.constraint.replace('(', ' ')
+        collector = collector.replace(')', ' ')
+        collector = collector.replace('.', ' ')
+        store = set()
+        for v in self.variables:
+            if (' ' + v + ' ') in collector:
+                store.add(v)
+        self.variables = store
+        print(self.variables)
+
+
+    def createrOfGrammar(self):
+        with open('grammar.py', 'w') as gram:
+            gram.truncate(0)
+            gram.write('grammar = {')
+            comps = self.getComponentsL(self.constraint)
+            while len(comps) > 2:
+                if comps[1] == 'AND':
+                    self.createCombinedGrammar(gram, comps[0])
+                if comps[1] == 'OR':
+                    self.createDijunctGrammar(gram, comps[0])
+
+
+
+    def getComponentsL(self, cons: str):
+        res = list()
+        countbrackets = 0
+        countstart = 0
+        countend = 0
+        opflag = False
+        oper = ''
+        z = 0
+        for i in cons:
+            countend += 1
+            if opflag:
+                if i == 'A':
+                    oper += i
+                    countstart += 1
+                if i == 'N':
+                    oper += i
+                    countstart += 1
+                if i == 'D':
+                    oper += i
+                    countstart += 1
+                if i == 'O':
+                    oper += i
+                    countstart += 1
+                if i == 'R':
+                    oper += i
+                    countstart += 1
+                if i == ' ':
+                    countstart += 1
+                    z += 1
+                    if z == 2:
+                        res.append(oper)
+                        oper = ''
+                        z = 0
+                        opflag = False
+            else:
+                if i == '(':
+                    countbrackets += 1
+                if i == ')':
+                    countbrackets -= 1
+                if countbrackets == 0:
+                    opflag = True
+                    res.append(cons[countstart:countend])
+                    countstart = countend
+        print(res)
+        return res
+
+
+
+
 
 if __name__ == '__main__':
     teststr = '''\
@@ -98,8 +173,10 @@ def test(s):
 '''
     ti = TypeInferer()
     const = ti.entrance(ast.parse(teststr))
-    print(const)
-    print(ti.getVariables())
-    print(ti.getName())
+    #print(const)
+    #print(ti.getVariables())
+    #print(ti.getName())
     cs = ConstraintSolver(cons=const, name=ti.getName(), variables=ti.getVariables())
     cs.clean()
+    cs.updateVariables()
+    cs.getComponentsL(cs.constraint)
