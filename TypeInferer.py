@@ -1,11 +1,10 @@
 import ast
-import isla
-from isla.solver import ISLaSolver
+from Constraintclasses import *
 
 
 class TypeInferer(ast.NodeVisitor):
     def __init__(self):
-        self.constraints = ''
+        self.constraints = None
         self.name = ''
         self.variables = set()
 
@@ -15,114 +14,86 @@ class TypeInferer(ast.NodeVisitor):
     def getVariables(self):
         return self.variables
     def entrance(self, node: ast):
-        self.visit(node)
+        self.constraints = self.visit(node)
         return self.constraints
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        for arg in node.args.args:
-            self.name = arg.arg
-            break
-        flag = False
-        for n in node.body:
-            if flag:
-                self.constraints += ' AND '
-            self.visit(n)
-            flag = True
-        return None
+        andi = self.visit(node.body[0])
+        for n in node.body[1:]:
+            andi =And(left = andi, right = self.visit(n))
+        return andi
 
     def visit_If(self, node: ast.If):
-        self.visit(node.test)
+        compcons = self.visit(node.test)
+        ifcons = compcons
+        elsecons = Not(compcons)
         for b in node.body:
-            self.constraints = self.constraints + ' AND '
-            self.visit(b)
+            ifcons = And(ifcons, self.visit(b))
         for e in node.orelse:
-            self.constraints = '(' + self.constraints + ')' + ' OR '
-            self.visit(e)
-        return None
+            elsecons = And(elsecons, self.visit(e))
+        res = Or(ifcons, elsecons)
+        return res
 
     def visit_Compare(self, node: ast.Compare):
-        self.constraints += '('
-        self.visit(node.left)
-        i = 0
-        for r in node.comparators:
-            op = ''
-            opast = ast.dump(node.ops[i])
-            if opast == 'Eq()':
-                op = '=='
-            if opast == 'NotEq()':
-                op = '!='
-            if opast == 'Lt()':
-                op = '<'
-            if opast == 'LtE()':
-                op = '<='
-            if opast == 'Gt()':
-                op = '>'
-            if opast == 'GtE()':
-                op = '>='
-            if opast == 'Is()':
-                op = 'is'
-            if opast == 'IsNot()':
-                op = 'is not'
-            if opast == 'In()':
-                op = 'in'
-            if opast == 'NotIn()':
-                op = 'not in'
-            self.constraints += ' ' + op + ' '
-            i = i + 1
-            self.visit(r)
-        self.constraints += ')'
-        return None
+        left = self.visit(node.left)
+        op = node.ops[0]
+        if len(node.comparators) > 1:
+            right = self.visit(ast.Compare(node.comparators[0], node.ops[1:], node.comparators[1:]))
+        else:
+            right = self.visit(node.comparators[0])
+        res = Compare(op, left, right)
+        return res
 
     def visit_Constant(self, node: ast.Constant):
+        res = None
         if isinstance(node.value, str):
-            self.constraints += "'"
-            self.constraints += str(node.value)
-            self.constraints += "'"
+            res = ConstStr(node.value)
+        elif isinstance(node.value, int):
+            res = ConstInt(node.value)
         else:
-            self.constraints += str(node.value)
-        return None
+            raise NotImplementedError
+        return res
 
     def visit_Name(self, node: ast.Name):
-        self.variables.add(node.id)
-        self.constraints += node.id
-        return None
+        res = Var(node.id)
+        return res
 
     def visit_Subscript(self, node: ast.Subscript):
-        self.visit(node.value)
-        self.constraints += '.charAt('
-        self.visit(node.slice)
-        self.constraints += ')'
-        return None
+        arguments = list()
+        arguments = arguments.append(self.visit(node.value))
+        arguments = arguments.append(self.visit(node.slice))
+        res = Call(CharAt, arguments)
+        return res
+
 
     def visit_Assert(self, node: ast.Assert):
-        self.visit(node.test)
-        return None
+        return self.visit(node.test)
 
     def visit_Call(self, node: ast.Call):
-        self.visit(node.func)
-        self.constraints += '('
-        flag = False
-        for arg in node.args:
-            if flag:
-                self.constraints += ', '
-            self.visit(arg)
-            flag = True
-        self.constraints += ')'
-        return None
+        name = ''
+        res = None
+        if isinstance(node.func, ast.Name):
+            name = node.func.id
+        elif isinstance(node.func, ast.Attribute):
+            name = node.func.attr
+        else:
+            raise Exception('Gibts nicht!')
+        match name:
+            case 'len':
+                res = Length
+            case _:
+                return None
+        reslist = list()
+        for i in node.args:
+            reslist.append(self.visit(i))
+        return Call(res, reslist)
 
     def visit_While(self, node: ast.While):
         self.visit(node.test)
-        self.constraints += '('
-        flag = False
         for i in node.body:
-            if flag:
-                self.constraints += ' AND '
-            flag = True
             self.visit(i)
         for j in node.orelse:
-            self.constraints += ' AND '
             self.visit(j)
-        self.constraints += ')'
         return None
 
     def visit_For(self, node: ast.For):

@@ -57,7 +57,7 @@ class Call(Term):
     args: list[Term]
 
 class Compare(Constraint):
-    def __init__(self, op: Comparator, left: Term, right: list()):
+    def __init__(self, op: Comparator, left: Term, right: Term):
         self.operator = op
         self.lhs = left
         self.rhs = right
