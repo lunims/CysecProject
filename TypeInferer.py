@@ -89,109 +89,118 @@ class TypeInferer(ast.NodeVisitor):
         return Call(res, reslist)
 
     def visit_While(self, node: ast.While):
-        self.visit(node.test)
+        comp = self.visit(node.test)
+        andi = comp
         for i in node.body:
-            self.visit(i)
+            andi = And(andi, self.visit(i))
+        notcomp = Not(comp)
+        bandi = notcomp
         for j in node.orelse:
-            self.visit(j)
-        return None
+            bandi = And(bandi, self.visit(j))
+        res = And(andi, bandi)
+        return res
 
-    def visit_For(self, node: ast.For):
-        self.visit(node.iter)
-        self.constraints += '('
-        flag = False
-        for i in node.body:
-            if flag:
-                self.constraints += ' AND '
-            flag = True
-            self.visit(i)
-        for j in node.orelse:
-            self.constraints += ' AND '
-            self.visit(j)
-        self.constraints += ')'
-        return None
+    def visit_For(self, node: ast.For): #TODO: iterStatement maybe?
+        res = None
+        if len(node.body) >= 1:
+            andi = self.visit(node.body[0])
+            for i in node.body[1:]:
+                andi = And(andi, self.visit(i))
+            if len(node.orelse) >= 1:
+                bandi = self.visit(node.orelse[0])
+                for j in node.orelse[1:]:
+                    bandi = And(bandi, self.visit(j))
+                res = And(andi, bandi)
+            else:
+                res = andi
+        else:
+            if len(node.orelse) >= 1:
+                bandi = self.visit(node.orelse[0])
+                for j in node.orelse[1:]:
+                    bandi = And(bandi, self.visit(j))
+                res = bandi
+            else:
+                res = None
+        return res
 
     def visit_Expr(self, node: ast.Expr):
-        self.visit(node.value)
+        return self.visit(node.value)
+
+
+    #TODO: dont needed but tried
+    def visit_ClassDef(self, node: ast.ClassDef):
+        if len(node.body) >= 1:
+            ori = self.visit(node.body[0])
+            for b in node.body[1:]:
+                ori =  Or(ori, self.visit(b))
+            return ori
         return None
 
-    def visit_ClassDef(self, node: ast.ClassDef):
-        flag = False
-        for b in node.body:
-            if flag:
-                self.constraints += ' OR '
-            self.visit(b)
-            flag = True
-        return None
 
     def visit_Return(self, node: ast.Return):
-        self.constraints += '('
-        self.visit(node.value)
-        self.constraints += ')'
-        return None
+        return self.visit(node.value)
 
     def visit_Assign(self, node: ast.Assign):
-        self.constraints += '('
-        flag = False
-        for v in node.targets:
-            if flag:
-                self.constraints += ' AND '
-            self.visit(v)
-            self.constraints += ' = '
-            self.visit(node.value)
-        self.constraints += ')'
-        return None
+        val = self.visit(node.value)
+        if len(node.targets) >= 1:
+            res = Equal(self.visit(node.targets[0]), val)
+            for v in node.targets[1:]:
+                neq = Equal(self.visit(v), val)
+                res = And(res, neq)
+            return res
 
     def visit_Match(self, node: ast.Match):
-        self.constraints += '('
-        flag = False
+        sub = self.visit(node.subject)
+        resl = list()
         for i in node.cases:
-            if flag:
-                self.constraints += ' OR '
-            self.visit(node.subject)
-            self.constraints += ' == '
-            self.visit(i)
-            flag = True
-        self.constraints += ')'
-        return None
+            newcomp = Compare(ast.Eq(), sub, self.visit(i))
+            resl.append(newcomp)
+        res = resl[0]
+        if len(resl) > 1:
+            for r in resl[1:]:
+                res = Or(res, r)
+        return res
 
     def visit_Try(self, node: ast.Try):
-        flag1 = False
-        for i in node.body:
-            if flag1:
-                self.constraints += ' AND '
-            self.visit(i)
-            flag1 = True
-        flag2 = True
-        for j in node.orelse:
-            if flag2:
-                self.constraints += ' OR '
-            else:
-                self.constraints += ' AND '
-            flag2 = False
-            self.visit(j)
-        for k in node.finalbody:
-            self.constraints += ' AND '
-            self.visit(k)
-        return None
+        andi1, andi2, andi3, res = None
+        if len(node.body) >= 1:
+            andi1 = self.visit(node.body[0])
+            for i in node.body[1:]:
+                andi1 = And(andi1, self.visit(i))
+        if len(node.orelse) >= 1:
+            andi2 = self.visit(node.orelse[0])
+            for j in node.orelse[1:]:
+                andi2 = And(andi2, self.visit(j))
+        if len(node.finalbody) >= 1:
+            andi3 = self.visit(node.finalbody[0])
+            for k in node.finalbody:
+                andi3 = And(andi3, self.visit(k))
+        if andi1 is not None:
+            res = andi1
+            if andi2 is not None:
+                res = Or(res, andi2)
+            if andi3 is not None:
+                res = And(res, andi3)
+        elif andi2 is not None:
+            res = andi2
+            if andi3 is not None:
+                res = And(res, andi3)
+        elif andi3 is not None:
+            res = andi3
+        return res
 
-    def visit_BoolOp(self, node: ast.BoolOp):
-        self.constraints += '('
+    def visit_BoolOp(self, node: ast.BoolOp):#TODO: waiting for response, Term list as right or new Constraint
         self.visit(node.values[0])
+        resop = node.op
         for v in node.values[1:]:
-            if ast.dump(node.op) == 'And()':
-                self.constraints += ' And '
-            else:
-                self.constraints += ' Or '
             self.visit(v)
-        self.constraints += ')'
         return None
 
     def visit_NamedExpr(self, node: ast.NamedExpr):
-        self.visit(node.value)
-        return None
+        res = Equal(self.visit(node.target),self.visit(node.value))
+        return res
 
-    def visit_BinOp(self, node: ast.BinOp):
+    def visit_BinOp(self, node: ast.BinOp): #TODO: waiting for response
         self.constraints += '('
         self.visit(node.left)
         t = ast.dump(node.op)
@@ -225,7 +234,7 @@ class TypeInferer(ast.NodeVisitor):
         self.constraints += ')'
         return None
 
-    def visit_UnaryOp(self, node: ast.UnaryOp):
+    def visit_UnaryOp(self, node: ast.UnaryOp): #TODO: waiting for response
         self.constraints += '('
         u = ast.dump(node.op)
         if u == 'Invert()':
@@ -241,22 +250,24 @@ class TypeInferer(ast.NodeVisitor):
         return None
 
     def visit_IfExp(self, node: ast.IfExp):
-        self.constraints += '('
-        self.visit(node.test)
-        self.constraints += ')'
-        self.constraints += ' AND '
-        self.constraints += '('
-        self.visit(node.body)
-        self.constraints += ')'
-        self.constraints += ' OR '
-        self.constraints += '('
-        self.visit(node.orelse)
-        self.constraints += ')'
-        return None
+        comp = self.visit(node.test)
+        andi = self.visit(node.body)
+        ori = self.visit(node.orelse)
+        res = Or(And(comp, andi), ori)
+        return res
 
-    def visit_Attribute(self, node: ast.Attribute):
-        self.visit(node.value)
-        self.constraints += '.' + node.attr
+    def visit_Attribute(self, node: ast.Attribute): #TODO: hardcode needed functioncalls
+        var = self.visit(node.value)
+        match node.attr:
+            case 'startswith':
+                #return Startswith
+                pass
+            case 'endswith':
+                #return Endswith
+                pass
+            case _:
+                raise NotImplementedError
+
         return None
 
 

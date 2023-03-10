@@ -61,3 +61,8 @@ class Compare(Constraint):
         self.operator = op
         self.lhs = left
         self.rhs = right
+
+class Equal(Constraint): #TODO: for assigntracking
+    def __init__(self, var: Var, val: Term):
+        self.name = var
+        self.value = val
