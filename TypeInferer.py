@@ -34,14 +34,18 @@ class TypeInferer(ast.NodeVisitor):
         res = Or(ifcons, elsecons)
         return res
 
-    def visit_Compare(self, node: ast.Compare):
+    def visit_Compare(self, node: ast.Compare):#TODO: adjust as mentioned
         left = self.visit(node.left)
         op = node.ops[0]
+        res = None
         if len(node.comparators) > 1:
-            right = self.visit(ast.Compare(node.comparators[0], node.ops[1:], node.comparators[1:]))
+            rightterm = self.visit(node.comparators[0])
+            rightcompare = self.visit(ast.Compare(rightterm, node.ops[1:], node.comparators[1:]))
+            comp = Compare(op, left, rightterm)
+            res = And(comp, rightcompare)
         else:
             right = self.visit(node.comparators[0])
-        res = Compare(op, left, right)
+            res = Compare(op, left, right)
         return res
 
     def visit_Constant(self, node: ast.Constant):
@@ -127,7 +131,7 @@ class TypeInferer(ast.NodeVisitor):
         return self.visit(node.value)
 
 
-    #TODO: dont needed but tried
+    #dont needed but tried
     def visit_ClassDef(self, node: ast.ClassDef):
         if len(node.body) >= 1:
             ori = self.visit(node.body[0])
@@ -189,18 +193,34 @@ class TypeInferer(ast.NodeVisitor):
             res = andi3
         return res
 
-    def visit_BoolOp(self, node: ast.BoolOp):#TODO: waiting for response, Term list as right or new Constraint
-        self.visit(node.values[0])
-        resop = node.op
-        for v in node.values[1:]:
-            self.visit(v)
-        return None
+    def visit_BoolOp(self, node: ast.BoolOp):#TODO: adjust as mentioned
+        left = self.visit(node.values[0])
+        right = self.visit(node.values[1])
+        op = node.op.__class__.__name__
+        res = None
+        if len(node.values) > 2:
+            rightres = self.visit(ast.BoolOp(node.op, node.values[1:]))
+            if op == 'Or':
+                leftres = Or(left, right)
+                res = Or(leftres, rightres)
+            if op == 'And':
+                leftres = And(left, right)
+                res = And(leftres, rightres)
+        else:
+            if op == 'Or':
+                res = Or(left, right)
+            if op == 'And':
+                res = And(left, right)
+        return res
+
 
     def visit_NamedExpr(self, node: ast.NamedExpr):
         res = Equal(self.visit(node.target),self.visit(node.value))
         return res
 
-    def visit_BinOp(self, node: ast.BinOp): #TODO: waiting for response
+    #TODO: deleted as mentioned
+    '''
+    def visit_BinOp(self, node: ast.BinOp): 
         self.constraints += '('
         self.visit(node.left)
         t = ast.dump(node.op)
@@ -233,21 +253,22 @@ class TypeInferer(ast.NodeVisitor):
         self.visit(node.right)
         self.constraints += ')'
         return None
+        '''
 
-    def visit_UnaryOp(self, node: ast.UnaryOp): #TODO: waiting for response
-        self.constraints += '('
-        u = ast.dump(node.op)
-        if u == 'Invert()':
-            self.constraints += ' ~'
+    def visit_UnaryOp(self, node: ast.UnaryOp): #TODO: just keeping booloperator not
+        '''
         if u == 'Not()':
             self.constraints += ' not'
+        if u == 'Invert()':
+            self.constraints += ' ~'
         if u == 'UAdd()':
             self.constraints += ' +'
         if u == 'USub()':
             self.constraints += ' -'
-        self.visit(node.operand)
-        self.constraints += ')'
-        return None
+            '''
+        resval = self.visit(node.operand)
+        res = Not(resval)
+        return res
 
     def visit_IfExp(self, node: ast.IfExp):
         comp = self.visit(node.test)
@@ -256,7 +277,7 @@ class TypeInferer(ast.NodeVisitor):
         res = Or(And(comp, andi), ori)
         return res
 
-    def visit_Attribute(self, node: ast.Attribute): #TODO: hardcode needed functioncalls
+    def visit_Attribute(self, node: ast.Attribute): #hardcode needed functioncalls
         var = self.visit(node.value)
         match node.attr:
             case 'startswith':
