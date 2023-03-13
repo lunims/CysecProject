@@ -19,7 +19,7 @@ class And(Constraint):
         self.rhs = right
 
     def dump(self):
-        return f'And(lhs={self.lhs.dump()}, rhs={self.rhs.dump()})'
+        return 'And{' + f'lhs={self.lhs.dump()}, rhs={self.rhs.dump()}' + '}'
 
 class Or(Constraint):
     def __init__(self, left: Constraint, right: Constraint):
@@ -27,7 +27,7 @@ class Or(Constraint):
         self.rhs = right
 
     def dump(self):
-        return f'Or(lhs={self.lhs.dump()}, rhs={self.rhs.dump()})'
+        return 'Or{' + f'lhs={self.lhs.dump()}, rhs={self.rhs.dump()}' + '}'
 
 class Not(Constraint):
     def __init__(self, op: Constraint):
@@ -62,6 +62,8 @@ class ConstInt(Term):
     def dump(self):
         return f'ConstInt(value={self.value})'
 class FunSymbol:
+    def __init__(self):
+        pass
     def dump(self):
         pass
 
@@ -82,7 +84,7 @@ class Call(Term):
         res = ''
         for arg in self.args:
             res += arg.dump()
-        return f'Call(func={self.func.dump()}, args=[{res}])'
+        return f'Call(func={self.func.dump(self)}, args=[{res}])'
 
 class Compare(Constraint):
     def __init__(self, op: Comparator, left: Term, right: Term):
@@ -98,6 +100,9 @@ class Equal(Constraint): #TODO: for assigntracking
         self.name = var
         self.value = val
 
+    def dump(self):
+        return f'Equal(name={self.name.dump()}, value={self.value.dump()})'
+
 const1 = ConstInt(val= 1)
 const2 = ConstStr(val= 'a')
 var = Var(name= 's')
@@ -108,4 +113,3 @@ comp = Compare(op= com, left= call1, right= const2)
 call2 = Call(func= Length(), args=[var, const2])
 comp2 = Compare(op= com, left= call2, right=const1)
 an = And(left= comp, right= comp2)
-print(an.dump())

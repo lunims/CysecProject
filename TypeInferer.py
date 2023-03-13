@@ -299,6 +299,7 @@ class TypeInferer(ast.NodeVisitor):
 if __name__ == '__main__':
     teststr = '''\
 def test(s):
+    s = 'b'
     if s[0] == 'a':
         assert len(s) == 1
     else:
