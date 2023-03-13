@@ -17,6 +17,9 @@ class TypeInferer(ast.NodeVisitor):
         self.constraints = self.visit(node)
         return self.constraints
 
+    def visit_Module(self, node: ast.Module):
+        return self.visit(node.body[0])
+
     def visit_FunctionDef(self, node: ast.FunctionDef):
         andi = self.visit(node.body[0])
         for n in node.body[1:]:
@@ -305,4 +308,4 @@ def test(s):
 '''
     ti = TypeInferer()
     print(ti.entrance(ast.parse(teststr)))
-    print(ti.constraints)
+    print(ti.constraints.dump())
