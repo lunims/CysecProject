@@ -66,16 +66,16 @@ class ConstraintSolver:
     """
 
     def parts(self, s: str):
-        useful = set()                              # useful is set with variables connected to our input
+        useful = set()                            # useful is set with variables connected to our input
         useful.add(self.name)                     # useful starts with input string
         var = s.split(' AND ')
         for i in var:
             comp = i.split(' ')
             flag = False
             for c in comp:
-                if c in useful:                     # check if component is in useful
+                if c in useful:                   # check if component is in useful
                     flag = True
-            if flag:                        # if True add all variables of component to our useful set
+            if flag:                              # if True add all variables of component to our useful set
                 for v in self.variables:
                     if v in comp:
                         useful.add(v)

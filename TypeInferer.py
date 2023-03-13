@@ -36,7 +36,7 @@ class TypeInferer(ast.NodeVisitor):
 
     def visit_Compare(self, node: ast.Compare):#TODO: adjust as mentioned
         left = self.visit(node.left)
-        op = node.ops[0]
+        op = Comparator(node.ops[0])
         res = None
         if len(node.comparators) > 1:
             rightterm = self.visit(node.comparators[0])
@@ -63,9 +63,9 @@ class TypeInferer(ast.NodeVisitor):
         return res
 
     def visit_Subscript(self, node: ast.Subscript):
-        arguments = list()
-        arguments = arguments.append(self.visit(node.value))
-        arguments = arguments.append(self.visit(node.slice))
+        arguments = []
+        arguments.append(self.visit(node.value))
+        arguments.append(self.visit(node.slice))
         res = Call(CharAt, arguments)
         return res
 
@@ -76,10 +76,12 @@ class TypeInferer(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call):
         name = ''
         res = None
+        reslist = list()
         if isinstance(node.func, ast.Name):
             name = node.func.id
         elif isinstance(node.func, ast.Attribute):
             name = node.func.attr
+            reslist.append(node.func.value.id)
         else:
             raise Exception('Gibts nicht!')
         match name:
@@ -87,7 +89,6 @@ class TypeInferer(ast.NodeVisitor):
                 res = Length
             case _:
                 return None
-        reslist = list()
         for i in node.args:
             reslist.append(self.visit(i))
         return Call(res, reslist)
@@ -304,3 +305,4 @@ def test(s):
 '''
     ti = TypeInferer()
     print(ti.entrance(ast.parse(teststr)))
+    print(ti.constraints)

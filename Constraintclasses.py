@@ -22,7 +22,7 @@ class And(Constraint):
         return f'And(lhs={self.lhs.dump()}, rhs={self.rhs.dump()})'
 
 class Or(Constraint):
-    def __init(self, left: Constraint, right: Constraint):
+    def __init__(self, left: Constraint, right: Constraint):
         self.lhs = left
         self.rhs = right
 
@@ -34,7 +34,7 @@ class Not(Constraint):
         self.operand = op
 
     def dump(self):
-        return f'Not(op= {self.operand.dump()})'
+        return f'Not(op= {self.operand})'
 
 
 class Term:
@@ -60,7 +60,7 @@ class ConstInt(Term):
         self.value = val
 
     def dump(self):
-        return f'ConstInt(value= {self.value})'
+        return f'ConstInt(value={self.value})'
 class FunSymbol:
     def dump(self):
         pass
@@ -74,8 +74,6 @@ class Length(FunSymbol):
         return f'len()'
 
 class Call(Term):
-    func: FunSymbol
-    args: list[Term]
     def __init__(self, func: FunSymbol, args: list[Term]):
         self.func = func
         self.args = args
