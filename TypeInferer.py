@@ -170,7 +170,7 @@ class TypeInferer(ast.NodeVisitor):
         return res
 
     def visit_Try(self, node: ast.Try):
-        andi1, andi2, andi3, res = None
+        andi1 = andi2 = andi3 = res = None
         if len(node.body) >= 1:
             andi1 = self.visit(node.body[0])
             for i in node.body[1:]:

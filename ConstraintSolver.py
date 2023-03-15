@@ -10,14 +10,53 @@ from TypeInferer import TypeInferer
 class ConstraintSolver:
 
     def entrace(self, constraint: Constraint):
-        res = self.visitConstraint(constraint)
+        dnf = self.to_dnf(constraint)
+        res = self.reg(dnf)
         return res
 
-    def visitConstraint(self, constraint: Constraint):
+    def to_dnf(self, constraint):
+        # base case: if the constraint is a Compare or an Equal, return it as a set
+        if isinstance(constraint, (Compare, Equal)):
+            return {constraint}
+
+        # if the constraint is a Not, negate its operand and return it as a set
+        if isinstance(constraint, Not):
+            negated = self.to_dnf(constraint.operand)
+            return {Not(c) for c in negated}
+
+        # recursively apply the DNF conversion to the left and right operands
+        lhs = self.to_dnf(constraint.lhs)
+        rhs = self.to_dnf(constraint.rhs)
+
+        # if the constraint is an Or, distribute it over the operands using the union of sets
+        if isinstance(constraint, Or):
+            return lhs.union(rhs)
+
+        # if the constraint is an And, distribute it over the operands using the Cartesian product of sets
+        if isinstance(constraint, And):
+            result = set()
+            for l in lhs:
+                for r in rhs:
+                    result.add(And(l, r))
+            return result
+
+    def reg(self, set: {}):
+        res = ''
+        flag = False
+        for i in set:
+            if flag:
+                res += ' | '
+            #res += self.build_regex(self.collectConstraint(i))
+            self.collectConstraint(i)
+            flag = True
+        return res
+
+    def build_regex(self, cons: (dict, {})):
+        pass
+
+    def collectConstraint(self, constraint: Constraint):
         if isinstance(constraint, And):
             return self.visitAnd(constraint)
-        elif isinstance(constraint, Or):
-            return self.visitOr(constraint)
         elif isinstance(constraint, Not):
             return self.visitNot(constraint)
         elif isinstance(constraint, Equal):
@@ -28,13 +67,18 @@ class ConstraintSolver:
             raise Exception
 
     def visitAnd(self, a: And):
-        return f'^(?=.{self.visitConstraint(a.lhs)})(?=.{self.visitConstraint(a.rhs)}).*$'
+        dict1, ndict1, set1 = self.collectConstraint(a.lhs)
+        dict2, ndict2, set2 = self.collectConstraint(a.rhs)
+        resSet = set1.union(set2)
+        dict2.update(dict1)
+        ndict2.update(ndict1)
+        return dict2, ndict2, resSet
 
-    def visitOr(self, o: Or):
-        return self.visitConstraint(o.lhs) + '|' + self.visitConstraint(o.rhs)
+
 
     def visitNot(self, no: Not):
-        return '[^' + self.visitConstraint(no.operand) + ']*$'
+        dic, ndict, se = self.collectConstraint(no.operand)
+        return ndict, dic, se
 
     #TODO vor visit über Constraint gehen und unseren String namen auf die linke seite schieben
     def visitCompare(self, comp: Compare):
@@ -55,24 +99,24 @@ class ConstraintSolver:
                     raise NotImplementedError
 
     def visitEqual(self, equal: Equal):
-        pass
+        s = equal.value.value
+        res = {}
+        i = 0
+        for c in s:
+            res[i] = c
+            i += 1
+        return res, dict(), set()
 
     def evalCharAt(self, lhs: Call, rhs: ConstStr, op: Comparator):
         match op.operator:
             case ast.Eq():
-                x = lhs.args[1].value
-                h ='^'
-                for i in range(x-1):
-                    h += '.'
-                h += rhs.value
-                return h
+                dic = {}
+                dic[lhs.args[1].value] = rhs.value
+                return dic, dict(), set()
             case ast.NotEq():
-                x = lhs.args[1]
-                h = '^'
-                for i in range(x - 1):
-                    h += '.'
-                h += rhs.value
-                return h
+                dic = {}
+                dic[lhs.args[1]] = {rhs.value}
+                return dict(), dic, set()
             case _:
                 raise NotImplementedError
 
@@ -80,34 +124,27 @@ class ConstraintSolver:
     def evalLen(self, rhs: ConstInt, op: Comparator):
         match op.operator:
             case ast.Eq():
-                return '{' + str(rhs.value) + '}'
+                return dict(), dict(), {('==', rhs.value)}
             case ast.NotEq():
-                return '{,' + str(rhs.value-1) + '}{' + str(rhs.value+1) + ',}'
+                return dict(), dict(), {('!=', rhs.value)}
             case ast.Lt():
-                return '{0,' + str(rhs.value-1) + '}'
+                return dict(), dict(), {('<', rhs.value)}
             case ast.LtE():
-                return '{0,' + str(rhs.value) + '}'
+                return dict(), dict(), {('<=', rhs.value)}
             case ast.Gt():
-                return '{' + str(rhs.value+1) + ',}'
+                return dict(), dict(), {('>', rhs.value)}
             case ast.GtE():
-                return '{' + str(rhs.value) + ',}'
+                return dict(), dict(), {('>=', rhs.value)}
             case _:
                 raise NotImplementedError
 
     def evalEquals(self, rhs: ConstStr):
-        return rhs.value
+        return dict(), dict(), set()
 
     def evalNotEquals(self, rhs: ConstStr):
-        return f'^(?!{rhs.value}$).*$'
+        return dict(), dict(), set()
 
-    def visitConstStr(self, const: ConstStr):
-        return const.value
 
-    def visitConstInt(self, const: ConstInt):
-        return const.value
-
-    def visitVar(self, var: Var):
-        return var.name
 
 
 
@@ -116,17 +153,19 @@ class ConstraintSolver:
 
 if __name__ == '__main__':
     teststr = '''\
-if s[0] == 'a':
-    assert len(s) == 1
-else:
-    assert s[1] == 'b'
+def test(s):
+    if s[0] == 'a':
+        assert len(s) == 1
+    else:
+        assert s[1] == 'b'
     '''
     ti = TypeInferer()
     const = ti.entrance(ast.parse(teststr))
     print(const.dump())
     cs = ConstraintSolver()
+    for i in cs.to_dnf(const):
+        print(i.dump())
     print(cs.entrace(const))
     reg = re.compile(cs.entrace(const))
     s = 'a'
-    print(re.match(reg, s))
 

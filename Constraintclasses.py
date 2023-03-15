@@ -34,7 +34,7 @@ class Not(Constraint):
         self.operand = op
 
     def dump(self):
-        return f'Not(op= {self.operand})'
+        return f'Not(op={self.operand.dump()})'
 
 
 class Term:
