@@ -47,7 +47,10 @@ class ConstraintSolver:
             if flag:
                 res += ' | '
             #res += self.build_regex(self.collectConstraint(i))
-            self.collectConstraint(i)
+            dic, ndic, se = self.collectConstraint(i)
+            print(dic)
+            print(ndic)
+            print(se)
             flag = True
         return res
 
@@ -69,6 +72,10 @@ class ConstraintSolver:
     def visitAnd(self, a: And):
         dict1, ndict1, set1 = self.collectConstraint(a.lhs)
         dict2, ndict2, set2 = self.collectConstraint(a.rhs)
+        for key in ndict1:
+            if ndict2.get(key) != None:
+                ndict1[key] = ndict1.get(key) + ndict2.get(key)
+                del ndict2[key]
         resSet = set1.union(set2)
         dict2.update(dict1)
         ndict2.update(ndict1)
@@ -115,7 +122,7 @@ class ConstraintSolver:
                 return dic, dict(), set()
             case ast.NotEq():
                 dic = {}
-                dic[lhs.args[1]] = {rhs.value}
+                dic[lhs.args[1].value] = rhs.value
                 return dict(), dic, set()
             case _:
                 raise NotImplementedError
@@ -157,6 +164,7 @@ def test(s):
     if s[0] == 'a':
         assert len(s) == 1
     else:
+        assert s[0] != 'z'
         assert s[1] == 'b'
     '''
     ti = TypeInferer()
@@ -165,7 +173,7 @@ def test(s):
     cs = ConstraintSolver()
     for i in cs.to_dnf(const):
         print(i.dump())
-    print(cs.entrace(const))
+    #print(cs.entrace(const))
     reg = re.compile(cs.entrace(const))
     s = 'a'
 
