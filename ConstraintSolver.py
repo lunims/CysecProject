@@ -10,9 +10,64 @@ from TypeInferer import TypeInferer
 class ConstraintSolver:
 
     def entrace(self, constraint: Constraint):
-        dnf = self.to_dnf(constraint)
+        clear, dic = self.cleanUp(constraint, dict())
+        #print(clear.dump())
+        dnf = self.to_dnf(clear)
         res = self.reg(dnf)
         return res
+
+    def cleanUp(self, cons: Constraint, dic: dict()):
+        match cons:
+            case And():
+                conl, dicl = self.cleanUp(cons.lhs, dic)
+                conr, dicr =self.cleanUp(cons.rhs, dicl)
+                return And(conl, conr), dicr
+            case Or():
+                conl, dicl = self.cleanUp(cons.lhs, dic)
+                conr, dicr = self.cleanUp(cons.rhs, dic)
+                return Or(conl, conr), dic
+            case Not():
+                con, dicn = self.cleanUp(cons.operand, dic)
+                return Not(con), dic
+            case Equal():
+                if isinstance(cons.value, Var):
+                    if cons.value.name in dic:
+                        cons.value = dic[cons.value.name]
+                dic[cons.name.name] = cons.value
+                return cons, dic
+            case Compare():
+                match cons.lhs:
+                    case ConstStr, ConstInt:
+                        if isinstance(cons.rhs, ConstStr) or isinstance(cons.rhs, ConstInt):
+                            return cons, dic
+                        he = cons.lhs
+                        cons.lhs = cons.rhs
+                        cons.rhs = he
+                        return self.cleanUp(cons, dic)
+                    case Var():
+                        if cons.lhs.name in dic:
+                            cons.lhs = dic[cons.lhs.name]
+                    case Call():
+                        for i in cons.lhs.args:
+                            if isinstance(i, Var):
+                                if i.name in dic:
+                                    i = dic[i.name]
+                    case _:
+                        raise Exception("Geht nicht!")
+                match cons.rhs:
+                    case Var():
+                        if cons.rhs.name in dic:
+                            cons.rhs = dic[cons.rhs.name]
+                    case Call():
+                        for i in cons.rhs.args:
+                            if isinstance(i, Var()):
+                                if i.name in dic:
+                                    i = dic[i.name]
+                return cons, dic
+
+
+
+
 
     def to_dnf(self, constraint):
         # base case: if the constraint is a Compare or an Equal, return it as a set
@@ -48,9 +103,9 @@ class ConstraintSolver:
                 res += ' | '
             #res += self.build_regex(self.collectConstraint(i))
             dic, ndic, se = self.collectConstraint(i)
-            print(dic)
-            print(ndic)
-            print(se)
+            #print(dic)
+            #print(ndic)
+            #print(se)
             flag = True
         return res
 
@@ -106,13 +161,14 @@ class ConstraintSolver:
                     raise NotImplementedError
 
     def visitEqual(self, equal: Equal):
-        s = equal.value.value
+        '''s = equal.value.value
         res = {}
         i = 0
         for c in s:
             res[i] = c
-            i += 1
-        return res, dict(), set()
+            i += 1'''
+        #TODO: if name == input then egal
+        return dict(), dict(), set()
 
     def evalCharAt(self, lhs: Call, rhs: ConstStr, op: Comparator):
         match op.operator:
@@ -167,13 +223,24 @@ def test(s):
         assert s[0] != 'z'
         assert s[1] == 'b'
     '''
+    test2 = '''\
+def test2(s):
+    x = 5
+    y = x
+    s == y
+    z = y
+    s == z
+'''
     ti = TypeInferer()
     const = ti.entrance(ast.parse(teststr))
-    print(const.dump())
+    #print(const.dump())
     cs = ConstraintSolver()
     for i in cs.to_dnf(const):
         print(i.dump())
-    #print(cs.entrace(const))
-    reg = re.compile(cs.entrace(const))
-    s = 'a'
+    print(cs.entrace(const))
+    #reg = re.compile(cs.entrace(const))
+    #s = 'a'
+    #cont = ti.entrance(ast.parse(test2))
+    #print(cont.dump())
+    #cs.entrace(cont)
 
