@@ -1,17 +1,20 @@
 #import isla
 #from isla.solver import ISLaSolver
 import re
+import sys
+
 import Constraintclasses
 from Constraintclasses import *
 import ast
 from TypeInferer import TypeInferer
+from typing import List, Dict, Union, Any, Tuple, Optional
+from fuzzingbook.Grammars import *
 
 
 class ConstraintSolver:
 
     def entrace(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
-        #print(clear.dump())
         dnf = self.to_dnf(clear)
         res = self.reg(dnf)
         return res
@@ -95,22 +98,113 @@ class ConstraintSolver:
                     result.add(And(l, r))
             return result
 
-    def reg(self, set: {}):
-        res = ''
-        flag = False
-        for i in set:
-            if flag:
-                res += ' | '
-            #res += self.build_regex(self.collectConstraint(i))
-            dic, ndic, se = self.collectConstraint(i)
-            #print(dic)
-            #print(ndic)
-            #print(se)
-            flag = True
-        return res
+    def reg(self, se: {}):
+        digit = []
+        for i in range(128):
+            digit[i] = chr(i)
+        grammar: Grammar = {
+            "<start>": [],
+            "<digits>": ["<digits>""<digit>", "<digit>"],
+            "<digits?>": ["", "<digits>"],
+            "<digit>": digit,
+            "<digit?>": digit.append(""),
+        }
+        elementcount = 0
+        for s in se:
+            rdic, rndic, rset = self.collectConstraint(s)
+            #print(rdic)
+            #print(rndic)
+            #print(rset)
+            gramdict = self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit)
+            if gramdict is not None:
+                res = gramdict.get("<start>")
+                grammar["<start>"] = grammar.get("<start>").append(res)
+                del gramdict["<start>"]
+                grammar.update(gramdict)
+        return grammar
 
-    def build_regex(self, cons: (dict, {})):
-        pass
+    def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), name: int, digit: list()):
+        if self.getLength(se) is None:
+            return None
+        resgram: Grammar = {
+            "<start>": [],
+        }
+        res = list()
+        ndicover = dict()
+        upper, lower, fix, nfix = self.getLength(se)
+        if fix is not None:
+            if fix > upper or fix < lower or fix in nfix or fix <= max(dic.keys()):
+                return None
+            else:
+                for i in range(fix):
+                    res.append("<digit>")
+        else:
+            for u in dic.keys():
+                if lower < u:
+                    lower = u
+            if lower > 0:
+                for i in range(lower):
+                    res.append("<digit>")
+            if upper != sys.maxsize:
+                while (len(res) < upper):
+                    res.append("<digit?>")
+        for k in dic.keys():
+            if res[k] in digit and res[k] != dic.get(k):
+                return None
+            res[k] = dic.get(k)
+        namecount = 1
+        for n in ndic.keys():
+            if n >= len(res):
+                ndicover[n] = ndic[n]
+            elif res[n] in digit and res[n] not in list(ndic[n]):
+                pass
+            elif res[n] in digit and res[n] in list(ndic[n]):
+                return None
+            else:
+                newdigi = digit
+                for c in ndic[n]:
+                    newdigi.remove(c)
+                newname = "<digit"
+                for i in range(namecount):
+                    newname += str(name)
+                newname += ">"
+                res[n] = newname
+                resgram[newname] = newdigi
+                namecount += 1
+
+        if upper == sys.maxsize:
+            if res[len(res) - 1] == "<digit>":
+                res[len(res - 1)] = "<digits>"
+            else:
+                res[len(res)] = "<digits?>"
+
+    def getLength(self, se: set()):
+        upper = sys.maxsize
+        lower = 0
+        fix = None
+        nfix = list()
+        for s in se:
+            match s[0]:
+                case '==':
+                    if fix is None:
+                        fix = s[1]
+                    else:
+                        return None
+                case '<=':
+                    if upper > s[1]:
+                        upper = s[1]
+                case '!=':
+                    nfix.append(s[1])
+                case '>=':
+                    if lower < s[1]:
+                        lower = s[1]
+                case '<':
+                    if upper > s[1]:
+                        upper = s[1] - 1
+                case '>':
+                    if lower < s[1]:
+                        lower = s[1] + 1
+        return upper, lower, fix, nfix
 
     def collectConstraint(self, constraint: Constraint):
         if isinstance(constraint, And):
@@ -142,7 +236,6 @@ class ConstraintSolver:
         dic, ndict, se = self.collectConstraint(no.operand)
         return ndict, dic, se
 
-    #TODO vor visit über Constraint gehen und unseren String namen auf die linke seite schieben
     def visitCompare(self, comp: Compare):
         if isinstance(comp.lhs, Call):
             if comp.lhs.func is Constraintclasses.CharAt:
@@ -152,7 +245,7 @@ class ConstraintSolver:
             else:
                 raise NotImplementedError
         elif isinstance(comp.lhs, Var):
-            match comp.op:
+            match comp.operator:
                 case ast.Eq:
                     return self.evalEquals(comp.rhs)
                 case ast.NotEq:
@@ -161,13 +254,6 @@ class ConstraintSolver:
                     raise NotImplementedError
 
     def visitEqual(self, equal: Equal):
-        '''s = equal.value.value
-        res = {}
-        i = 0
-        for c in s:
-            res[i] = c
-            i += 1'''
-        #TODO: if name == input then egal
         return dict(), dict(), set()
 
     def evalCharAt(self, lhs: Call, rhs: ConstStr, op: Comparator):
@@ -219,6 +305,8 @@ if __name__ == '__main__':
 def test(s):
     if s[0] == 'a':
         assert len(s) == 1
+    elif len(s) == 2 and len(s) > 3:
+        assert s[2] == 4
     else:
         assert s[0] != 'z'
         assert s[1] == 'b'
@@ -235,13 +323,9 @@ def test2(s):
     const = ti.entrance(ast.parse(teststr))
     #print(const.dump())
     cs = ConstraintSolver()
-    for i in cs.to_dnf(const):
-        print(i.dump())
+    #for i in cs.to_dnf(const):
+        #print(i.dump())
     print(cs.entrace(const))
     #reg = re.compile(cs.entrace(const))
-    #s = 'a'
-    #cont = ti.entrance(ast.parse(test2))
-    #print(cont.dump())
-    #cs.entrace(cont)
-    print("Luca ist der Beste")
+
 
