@@ -13,7 +13,7 @@ from fuzzingbook.Grammars import *
 
 class ConstraintSolver:
 
-    def entrace(self, constraint: Constraint):
+    def entrance(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
         dnf = self.to_dnf(clear)
         res = self.reg(dnf)
@@ -99,28 +99,28 @@ class ConstraintSolver:
             return result
 
     def reg(self, se: {}):
-        digit = []
+        digit = list()
         for i in range(128):
-            digit[i] = chr(i)
+            digit.append(chr(i))
+        digiti = digit
+        digiti.append("")
         grammar: Grammar = {
             "<start>": [],
             "<digits>": ["<digits>""<digit>", "<digit>"],
             "<digits?>": ["", "<digits>"],
             "<digit>": digit,
-            "<digit?>": digit.append(""),
+            "<digit?>": digiti,
         }
         elementcount = 0
         for s in se:
             rdic, rndic, rset = self.collectConstraint(s)
-            #print(rdic)
-            #print(rndic)
-            #print(rset)
-            gramdict = self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit)
-            if gramdict is not None:
+            if self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit) is not None:
+                gramdict, nfix, ndicover = self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit)
                 res = gramdict.get("<start>")
-                grammar["<start>"] = grammar.get("<start>").append(res)
+                grammar["<start>"].append(res)
                 del gramdict["<start>"]
                 grammar.update(gramdict)
+                elementcount += 1
         return grammar
 
     def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), name: int, digit: list()):
@@ -142,9 +142,8 @@ class ConstraintSolver:
             for u in dic.keys():
                 if lower < u:
                     lower = u
-            if lower > 0:
-                for i in range(lower):
-                    res.append("<digit>")
+            for i in range(lower + 1):
+                res.append("<digit>")
             if upper != sys.maxsize:
                 while (len(res) < upper):
                     res.append("<digit?>")
@@ -163,7 +162,8 @@ class ConstraintSolver:
             else:
                 newdigi = digit
                 for c in ndic[n]:
-                    newdigi.remove(c)
+                    if c in newdigi:
+                        newdigi.remove(str(c))
                 newname = "<digit"
                 for i in range(namecount):
                     newname += str(name)
@@ -171,12 +171,13 @@ class ConstraintSolver:
                 res[n] = newname
                 resgram[newname] = newdigi
                 namecount += 1
-
-        if upper == sys.maxsize:
+        if upper == sys.maxsize and fix is None:
             if res[len(res) - 1] == "<digit>":
                 res[len(res - 1)] = "<digits>"
             else:
-                res[len(res)] = "<digits?>"
+                res.append("<digits?>")
+        resgram["<start>"] = ''.join(res)
+        return resgram, nfix, ndicover
 
     def getLength(self, se: set()):
         upper = sys.maxsize
@@ -259,11 +260,11 @@ class ConstraintSolver:
     def evalCharAt(self, lhs: Call, rhs: ConstStr, op: Comparator):
         match op.operator:
             case ast.Eq():
-                dic = {}
+                dic = dict()
                 dic[lhs.args[1].value] = rhs.value
                 return dic, dict(), set()
             case ast.NotEq():
-                dic = {}
+                dic = dict()
                 dic[lhs.args[1].value] = rhs.value
                 return dict(), dic, set()
             case _:
@@ -305,8 +306,6 @@ if __name__ == '__main__':
 def test(s):
     if s[0] == 'a':
         assert len(s) == 1
-    elif len(s) == 2 and len(s) > 3:
-        assert s[2] == 4
     else:
         assert s[0] != 'z'
         assert s[1] == 'b'
@@ -325,7 +324,9 @@ def test2(s):
     cs = ConstraintSolver()
     #for i in cs.to_dnf(const):
         #print(i.dump())
-    print(cs.entrace(const))
+    gram = cs.entrance(const)
     #reg = re.compile(cs.entrace(const))
+    for i in range(100):
+        print(simple_grammar_fuzzer(gram))
 
 
