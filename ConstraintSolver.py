@@ -1,14 +1,11 @@
 #import isla
 #from isla.solver import ISLaSolver
-import re
-import sys
+
+from fuzzingbook.Grammars import *
 
 import Constraintclasses
 from Constraintclasses import *
-import ast
 from TypeInferer import TypeInferer
-from typing import List, Dict, Union, Any, Tuple, Optional
-from fuzzingbook.Grammars import *
 
 
 class ConstraintSolver:
@@ -20,7 +17,7 @@ class ConstraintSolver:
         clear, dic = self.cleanUp(constraint, dict())
         dnf = self.to_dnf(clear)
         res = self.reg(dnf)
-        res = self.cleanGrammar(res)
+        res = self.cleanGrammar(self.cleanGrammar(res))
         return res
 
     def cleanGrammar(self, gr: Grammar):
@@ -117,40 +114,40 @@ class ConstraintSolver:
             return result
 
     def reg(self, se: {}):
+        constraintsCollecting = list()
         digit = list()
-        digiti = list()
         for i in range(32, 127):
             digit.append(chr(i))
-            digiti.append(chr(i))
-        digiti.append('')
         grammar: Grammar = {
             "<start>": ['<string>'],
             "<string>": [],
             "<digits>": ["<digit>""<digits>", "<digit>"],
             "<digitsU>": ["", "<digits>"],
             "<digit>": digit,
-            "<digitU>": digiti,
+            "<digitU>": ["", "<digit>"],
         }
         elementcount = 0
         for s in se:
             rdic, rndic, rset = self.collectConstraint(s)
             if self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit) is not None:
-                gramdict, nfix, ndicover = self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit)
+                gramdict, constraint = self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit)
                 res = gramdict.get("<string>")
                 grammar["<string>"].append(res)
                 del gramdict["<string>"]
                 grammar.update(gramdict)
                 elementcount += 1
+                constraintsCollecting.append(constraint)
+        print(constraintsCollecting)
         return grammar
 
     def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), name: int, digit: list()):
         if self.getLength(se) is None:
             return None
         resgram: Grammar = {
-            "<string>": [],
+            "<string>": "<element" + str(name) + ">",
+            "<element" + str(name) + ">": [],
         }
         res = list()
-        ndicover = dict()
         upper, lower, fix, nfix = self.getLength(se)
         if fix is not None:
             if fix > upper or fix < lower or fix in nfix or fix <= max(dic.keys()):
@@ -167,37 +164,49 @@ class ConstraintSolver:
             if upper != sys.maxsize:
                 while (len(res) < upper):
                     res.append("<digitU>")
+            else:
+                uppi = max(ndic.keys()) + 1
+                while (len(res) < uppi):
+                    res.append("<digitU>")
         for k in dic.keys():
             if res[k] in digit and res[k] != dic.get(k):
                 return None
             res[k] = dic.get(k)
         namecount = 1
         for n in ndic.keys():
-            if n >= len(res):
-                ndicover[n] = ndic[n]
-            elif res[n] in digit and res[n] not in list(ndic[n]):
+            if res[n] in digit and res[n] not in list(ndic[n]):
                 pass
             elif res[n] in digit and res[n] in list(ndic[n]):
                 return None
             else:
-                newdigi = digit
-                for c in ndic[n]:
-                    if c in newdigi:
-                        newdigi.remove(str(c))
                 newname = "<digit"
                 for i in range(namecount):
                     newname += str(name)
-                newname += ">"
-                res[n] = newname
-                resgram[newname] = newdigi
+                newdigi = list()
+                for i in range(32, 127):
+                    newdigi.append(chr(i))
+                for c in ndic[n]:
+                    if c in newdigi:
+                        newdigi.remove(str(c))
+                if res[n].startswith("<digitU"):
+                    res[n] = newname + "U>"
+                    resgram[res[n]] = ["", newname + ">"]
+                    resgram[newname + ">"] = newdigi
+                else:
+                    resgram[newname + ">"] = newdigi
                 namecount += 1
         if upper == sys.maxsize and fix is None:
             if res[len(res) - 1] == "<digit>":
                 res[len(res - 1)] = "<digits>"
             else:
                 res.append("<digitsU>")
-        resgram["<string>"] = ''.join(res)
-        return resgram, nfix, ndicover
+        resgram["<element" + str(name) + ">"].append(''.join(res))
+        cons = list()
+        for i in nfix:
+            if lower <= i <= upper:
+                cons.append("not(str.len(<element" + str(name) + ">) = " + str(i) + ")")
+        cons = " and ".join(cons)
+        return resgram, cons
 
     def getLength(self, se: set()):
         upper = sys.maxsize
@@ -327,8 +336,11 @@ def test(s):
     if s[0] == 'a':
         assert len(s) == 1
     else:
+        assert len(s) != 3
         assert s[0] != 'z'
         assert s[1] == 'b'
+        assert s[4] != 'm'
+        assert s[7] != 't'
     '''
     test2 = '''\
 def test2(s):
@@ -345,7 +357,8 @@ def test2(s):
     #for i in cs.to_dnf(const):
         #print(i.dump())
     gram = cs.entrance(const)
-    for i in range(100):
-        print(repr(simple_grammar_fuzzer(gram)))
+    print(gram)
+    #for i in range(10):
+        #print(repr(simple_grammar_fuzzer(gram)))
 
 
