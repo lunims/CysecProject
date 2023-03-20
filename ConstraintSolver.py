@@ -13,11 +13,29 @@ from fuzzingbook.Grammars import *
 
 class ConstraintSolver:
 
+    #def __init__(self):
+        #self.grammar: Grammar
+
     def entrance(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
         dnf = self.to_dnf(clear)
         res = self.reg(dnf)
+        res = self.cleanGrammar(res)
         return res
+
+    def cleanGrammar(self, gr: Grammar):
+        he = list()
+        it = gr.keys()
+        for k in gr:
+            for i in it:
+                for y in gr[i]:
+                    if k in y:
+                        he.append(k)
+        res = list(set(it) - set(he))
+        res.remove("<start>")
+        for i in res:
+            del gr[i]
+        return gr
 
     def cleanUp(self, cons: Constraint, dic: dict()):
         match cons:
@@ -100,25 +118,27 @@ class ConstraintSolver:
 
     def reg(self, se: {}):
         digit = list()
-        for i in range(128):
+        digiti = list()
+        for i in range(32, 127):
             digit.append(chr(i))
-        digiti = digit
-        digiti.append("")
+            digiti.append(chr(i))
+        digiti.append('')
         grammar: Grammar = {
-            "<start>": [],
-            "<digits>": ["<digits>""<digit>", "<digit>"],
-            "<digits?>": ["", "<digits>"],
+            "<start>": ['<string>'],
+            "<string>": [],
+            "<digits>": ["<digit>""<digits>", "<digit>"],
+            "<digitsU>": ["", "<digits>"],
             "<digit>": digit,
-            "<digit?>": digiti,
+            "<digitU>": digiti,
         }
         elementcount = 0
         for s in se:
             rdic, rndic, rset = self.collectConstraint(s)
             if self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit) is not None:
                 gramdict, nfix, ndicover = self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit)
-                res = gramdict.get("<start>")
-                grammar["<start>"].append(res)
-                del gramdict["<start>"]
+                res = gramdict.get("<string>")
+                grammar["<string>"].append(res)
+                del gramdict["<string>"]
                 grammar.update(gramdict)
                 elementcount += 1
         return grammar
@@ -127,7 +147,7 @@ class ConstraintSolver:
         if self.getLength(se) is None:
             return None
         resgram: Grammar = {
-            "<start>": [],
+            "<string>": [],
         }
         res = list()
         ndicover = dict()
@@ -146,7 +166,7 @@ class ConstraintSolver:
                 res.append("<digit>")
             if upper != sys.maxsize:
                 while (len(res) < upper):
-                    res.append("<digit?>")
+                    res.append("<digitU>")
         for k in dic.keys():
             if res[k] in digit and res[k] != dic.get(k):
                 return None
@@ -175,8 +195,8 @@ class ConstraintSolver:
             if res[len(res) - 1] == "<digit>":
                 res[len(res - 1)] = "<digits>"
             else:
-                res.append("<digits?>")
-        resgram["<start>"] = ''.join(res)
+                res.append("<digitsU>")
+        resgram["<string>"] = ''.join(res)
         return resgram, nfix, ndicover
 
     def getLength(self, se: set()):
@@ -325,8 +345,7 @@ def test2(s):
     #for i in cs.to_dnf(const):
         #print(i.dump())
     gram = cs.entrance(const)
-    #reg = re.compile(cs.entrace(const))
     for i in range(100):
-        print(simple_grammar_fuzzer(gram))
+        print(repr(simple_grammar_fuzzer(gram)))
 
 
