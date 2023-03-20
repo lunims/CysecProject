@@ -173,12 +173,14 @@ class ConstraintSolver:
                 return None
             res[k] = dic.get(k)
         namecount = 1
+        print(ndic)
         for n in ndic.keys():
             if res[n] in digit and res[n] not in list(ndic[n]):
                 pass
             elif res[n] in digit and res[n] in list(ndic[n]):
                 return None
             else:
+                print(res)
                 newname = "<digit"
                 for i in range(namecount):
                     newname += str(name)
@@ -193,6 +195,7 @@ class ConstraintSolver:
                     resgram[res[n]] = ["", newname + ">"]
                     resgram[newname + ">"] = newdigi
                 else:
+                    res[n] = newname + ">"
                     resgram[newname + ">"] = newdigi
                 namecount += 1
         if upper == sys.maxsize and fix is None:

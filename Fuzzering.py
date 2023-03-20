@@ -28,13 +28,9 @@ def test(s):
     fuzz = GrammarFuzzer(gr)
     #print(fuzz.fuzz())
     #print(gr)
-    solver = ISLaSolver(gr, '(str.len(<element0>) = 3) and str.len(<element1>) = 1')
+    solver = ISLaSolver(gr, '(str.len(<element0>) = 4) and str.len(<element1>) = 1')
     print(solver.solve())
     print(solver.solve())
-    grammar = {'<start>': ['<config>'], '<config>': ['pagesize=<pagesize>\nbufsize=<bufsize>'], '<pagesize>': ['<int>'],
-               '<bufsize>': ['<int>'], '<int>': ['<leaddigit><digits>'], '<digits>': ['', '<digit><digits>'],
-               '<digit>': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
-               '<leaddigit>': ['1', '2', '3', '4', '5', '6', '7', '8', '9']}
     #solver = ISLaSolver(grammar, 'str.len(<int>) > 5')
     printi = set()
     for i in range(100):
