@@ -11,7 +11,11 @@ from TypeInferer import TypeInferer
 
 class ConstraintSolver:
 
-    #def __init__(self):
+    def __init__(self, code: ast.AST):
+        self.constraint = ''
+        ti = TypeInferer()
+        const = ti.entrance(code)
+        self.grammar = self.entrance(const)
         #self.grammar: Grammar
 
     def entrance(self, constraint: Constraint):
@@ -140,7 +144,14 @@ class ConstraintSolver:
                 grammar.update(gramdict)
                 elementcount += 1
                 constraintsCollecting.append(constraint)
+        flag = False
         print(constraintsCollecting)
+        for i in constraintsCollecting:
+            if i != '':
+                self.constraint += f'({i})'
+                if flag:
+                    self.constraint += ' and '
+                flag = True
         return grammar
 
     def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), name: int, digit: list()):
@@ -398,14 +409,13 @@ def test2(s):
     z = y
     s == z
 '''
-    ti = TypeInferer()
-    const = ti.entrance(ast.parse(teststr))
+    #ti = TypeInferer()
+    #const = ti.entrance(ast.parse(teststr))
     #print(const.dump())
-    cs = ConstraintSolver()
+    cs = ConstraintSolver(code=ast.parse(teststr))
     #for i in cs.to_dnf(const):
         #print(i.dump())
-    gram = cs.entrance(const)
-    print(gram)
+    print(cs.grammar)
     #for i in range(10):
         #print(repr(simple_grammar_fuzzer(gram)))
 

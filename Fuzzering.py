@@ -20,15 +20,13 @@ def test(s):
         assert s[4] != 'm'
         assert s[7] != 't'
     '''
-    ti = TypeInferer()
-    const = ti.entrance(ast.parse(teststr))
-    cs = ConstraintSolver()
-    gr = cs.entrance(constraint=const)
-    print(gr)
-    fuzz = GrammarFuzzer(gr)
+    cs = ConstraintSolver(code=ast.parse(teststr))
+    print(cs.grammar)
+    fuzz = GrammarFuzzer(cs.grammar)
     #print(fuzz.fuzz())
     #print(gr)
-    solver = ISLaSolver(gr, '(str.len(<element0>) = 1) and str.len(<element1>) = 4')
+    solver = ISLaSolver(cs.grammar, cs.constraint)
+    print(cs.constraint)
     print(solver.solve())
     print(solver.solve())
     #solver = ISLaSolver(grammar, 'str.len(<int>) > 5')
