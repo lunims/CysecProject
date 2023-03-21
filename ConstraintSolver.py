@@ -263,6 +263,7 @@ class ConstraintSolver:
 
     def visitAnd(self, a: And):
         dict1, ndict1, set1 = self.collectConstraint(a.lhs)
+        print(a.rhs.dump())
         dict2, ndict2, set2 = self.collectConstraint(a.rhs)
         for key in ndict1:
             if ndict2.get(key) != None:
@@ -301,7 +302,7 @@ class ConstraintSolver:
 
     def evalStartsWith(self, lhs: Term, rhs: Term, op: Comparator):
         match op.operator:
-            case ast.Eq:
+            case ast.Eq():
                 if rhs == None:
                     dic = dict()
                     counter = 0
@@ -323,7 +324,7 @@ class ConstraintSolver:
                         dic[counter] = i
                         counter += 1
                     return dict(), dic, set()
-            case ast.NotEq:
+            case ast.NotEq():
                 if rhs.value:
                     dic = dict()
                     counter = 0
@@ -396,7 +397,7 @@ class ConstraintSolver:
 if __name__ == '__main__':
     teststr = '''\
 def test(s):
-    if s.startsWith("test"):
+    if s.startsWith("test") == True:
         x = True
         assert s.startsWith("te") == x
         assert len(s) == 6
