@@ -48,6 +48,10 @@ class Var(Term):
     def dump(self):
         return f'Var(name={self.name})'
 
+class ConstBool(Term):
+    def __init__(self, val: bool):
+        self.value = val
+
 class ConstStr(Term):
     def __init__(self, val: str):
         self.value = val
@@ -67,6 +71,10 @@ class FunSymbol:
     def dump(self):
         pass
 
+class startsWith(FunSymbol):
+    def dump(selfs):
+        return f'startsWith()'
+
 class CharAt(FunSymbol):
     def dump(self):
         return f'charAt()'
@@ -84,7 +92,7 @@ class Call(Term):
         res = ''
         for arg in self.args:
             res += arg.dump()
-        return f'Call(func={self.func.dump(self)}, args=[{res}])'
+        return f'Call(func={self.func.dump()}, args=[{res}])'
 
 class Compare(Constraint):
     def __init__(self, op: Comparator, left: Term, right: Term):

@@ -1,5 +1,6 @@
 #import isla
 #from isla.solver import ISLaSolver
+import ast
 
 from fuzzingbook.Grammars import *
 
@@ -16,6 +17,8 @@ class ConstraintSolver:
     def entrance(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
         dnf = self.to_dnf(clear)
+        for i in dnf:
+            print(i.dump())
         res = self.reg(dnf)
         res = self.cleanGrammar(self.cleanGrammar(res))
         return res
@@ -173,14 +176,12 @@ class ConstraintSolver:
                 return None
             res[k] = dic.get(k)
         namecount = 1
-        print(ndic)
         for n in ndic.keys():
             if res[n] in digit and res[n] not in list(ndic[n]):
                 pass
             elif res[n] in digit and res[n] in list(ndic[n]):
                 return None
             else:
-                print(res)
                 newname = "<digit"
                 for i in range(namecount):
                     newname += str(name)
@@ -271,10 +272,12 @@ class ConstraintSolver:
 
     def visitCompare(self, comp: Compare):
         if isinstance(comp.lhs, Call):
-            if comp.lhs.func is Constraintclasses.CharAt:
+            if isinstance(comp.lhs.func,Constraintclasses.CharAt):
                 return self.evalCharAt(comp.lhs, comp.rhs, comp.operator)
-            elif comp.lhs.func is Length:
+            elif isinstance(comp.lhs.func, Length):
                 return self.evalLen(comp.rhs, comp.operator)
+            elif isinstance(comp.lhs.func, Constraintclasses.startsWith):
+                return self.evalStartsWith(comp.lhs, comp.rhs, comp.operator)
             else:
                 raise NotImplementedError
         elif isinstance(comp.lhs, Var):
@@ -285,6 +288,48 @@ class ConstraintSolver:
                     return self.evalNotEquals(comp.rhs)
                 case _:
                     raise NotImplementedError
+
+    def evalStartsWith(self, lhs: Term, rhs: Term, op: Comparator):
+        match op.operator:
+            case ast.Eq:
+                if rhs == None:
+                    dic = dict()
+                    counter = 0
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    print(dic)
+                    return dic, dict(), set()
+                if rhs.value:
+                    dic = dict()
+                    counter = 0
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    print(dic)
+                    return dic, dict(), set()
+                else:
+                    dic = dict()
+                    counter = 0
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    return dict(), dic, set()
+            case ast.NotEq:
+                if rhs.value:
+                    dic = dict()
+                    counter = 0
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    return dict(), dic, set()
+                else:
+                    dic = dict()
+                    counter = 0
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    return dic, dict(), set()
 
     def visitEqual(self, equal: Equal):
         return dict(), dict(), set()
@@ -336,8 +381,8 @@ class ConstraintSolver:
 if __name__ == '__main__':
     teststr = '''\
 def test(s):
-    if s[0] == 'a':
-        assert len(s) == 1
+    if s.startsWith("test"):
+        assert len(s) == 4
     else:
         assert len(s) != 3
         assert s[0] != 'z'

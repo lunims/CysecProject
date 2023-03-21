@@ -1,4 +1,6 @@
 import ast
+
+import Constraintclasses
 from Constraintclasses import *
 
 
@@ -28,6 +30,8 @@ class TypeInferer(ast.NodeVisitor):
 
     def visit_If(self, node: ast.If):
         compcons = self.visit(node.test)
+        if isinstance(compcons, Constraintclasses.Call):
+            compcons = Constraintclasses.Compare(op=Comparator(op=ast.Eq), left=compcons, right=ConstBool(val=True))
         ifcons = compcons
         elsecons = Not(compcons)
         for b in node.body:
@@ -57,6 +61,8 @@ class TypeInferer(ast.NodeVisitor):
             res = ConstStr(node.value)
         elif isinstance(node.value, int):
             res = ConstInt(node.value)
+        elif isinstance(node.value, bool):  #added ConstBoold
+            res = ConstBool(node.value)
         else:
             raise NotImplementedError
         return res
@@ -69,7 +75,7 @@ class TypeInferer(ast.NodeVisitor):
         arguments = []
         arguments.append(self.visit(node.value))
         arguments.append(self.visit(node.slice))
-        res = Call(CharAt, arguments)
+        res = Call(CharAt(), arguments)
         return res
 
 
@@ -84,12 +90,14 @@ class TypeInferer(ast.NodeVisitor):
             name = node.func.id
         elif isinstance(node.func, ast.Attribute):
             name = node.func.attr
-            reslist.append(node.func.value.id)
+            reslist.append(self.visit(node.func.value))
         else:
             raise Exception('Gibts nicht!')
         match name:
             case 'len':
-                res = Length
+                res = Length()
+            case 'startsWith':
+                res = startsWith()
             case _:
                 return None
         for i in node.args:

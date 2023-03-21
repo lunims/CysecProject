@@ -28,7 +28,7 @@ def test(s):
     fuzz = GrammarFuzzer(gr)
     #print(fuzz.fuzz())
     #print(gr)
-    solver = ISLaSolver(gr, '(str.len(<element0>) = 4) and str.len(<element1>) = 1')
+    solver = ISLaSolver(gr, '(str.len(<element0>) = 1) and str.len(<element1>) = 4')
     print(solver.solve())
     print(solver.solve())
     #solver = ISLaSolver(grammar, 'str.len(<int>) > 5')
