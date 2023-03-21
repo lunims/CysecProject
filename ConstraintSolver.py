@@ -16,7 +16,6 @@ class ConstraintSolver:
         ti = TypeInferer()
         const = ti.entrance(code)
         self.grammar = self.entrance(const)
-        #self.grammar: Grammar
 
     def entrance(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
@@ -292,10 +291,11 @@ class ConstraintSolver:
             else:
                 raise NotImplementedError
         elif isinstance(comp.lhs, Var):
-            match comp.operator:
-                case ast.Eq:
+            print(comp.operator.operator)
+            match comp.operator.operator:
+                case ast.Eq():
                     return self.evalEquals(comp.rhs)
-                case ast.NotEq:
+                case ast.NotEq():
                     return self.evalNotEquals(comp.rhs)
                 case _:
                     raise NotImplementedError
@@ -309,7 +309,6 @@ class ConstraintSolver:
                     for i in list(lhs.args[1].value):
                         dic[counter] = i
                         counter += 1
-                    print(dic)
                     return dic, dict(), set()
                 if rhs.value:
                     dic = dict()
@@ -317,7 +316,6 @@ class ConstraintSolver:
                     for i in list(lhs.args[1].value):
                         dic[counter] = i
                         counter += 1
-                    print(dic)
                     return dic, dict(), set()
                 else:
                     dic = dict()
@@ -377,7 +375,14 @@ class ConstraintSolver:
                 raise NotImplementedError
 
     def evalEquals(self, rhs: ConstStr):
-        return dict(), dict(), set()
+        dic = dict()
+        counter = 0
+        for i in list(rhs.value):
+            dic[counter] = i
+            counter += 1
+        se = set()
+        se.add(('==', counter))
+        return dic, dict(), se
 
     def evalNotEquals(self, rhs: ConstStr):
         return dict(), dict(), set()
@@ -393,7 +398,8 @@ if __name__ == '__main__':
     teststr = '''\
 def test(s):
     if s.startsWith("test"):
-        assert len(s) == 4
+        assert len(s) == 6
+        assert s != "tester"
     else:
         assert len(s) != 3
         assert s[0] != 'z'
