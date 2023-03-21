@@ -45,7 +45,7 @@ class TypeInferer(ast.NodeVisitor):
         else:
             return Or(ifcons, elsecons)
 
-    def visit_Compare(self, node: ast.Compare):#TODO: adjust as mentioned
+    def visit_Compare(self, node: ast.Compare):
         left = self.visit(node.left)
         op = Comparator(node.ops[0])
         res = None
@@ -120,7 +120,7 @@ class TypeInferer(ast.NodeVisitor):
         res = And(andi, bandi)
         return res
 
-    def visit_For(self, node: ast.For): #TODO: iterStatement maybe?
+    def visit_For(self, node: ast.For):
         res = None
         if len(node.body) >= 1:
             andi = self.visit(node.body[0])
@@ -205,7 +205,7 @@ class TypeInferer(ast.NodeVisitor):
             res = andi3
         return res
 
-    def visit_BoolOp(self, node: ast.BoolOp):#TODO: adjust as mentioned
+    def visit_BoolOp(self, node: ast.BoolOp):
         left = self.visit(node.values[0])
         right = self.visit(node.values[1])
         op = node.op.__class__.__name__
@@ -230,7 +230,6 @@ class TypeInferer(ast.NodeVisitor):
         res = Equal(self.visit(node.target),self.visit(node.value))
         return res
 
-    #TODO: deleted as mentioned
     '''
     def visit_BinOp(self, node: ast.BinOp): 
         self.constraints += '('
@@ -267,7 +266,7 @@ class TypeInferer(ast.NodeVisitor):
         return None
         '''
 
-    def visit_UnaryOp(self, node: ast.UnaryOp): #TODO: just keeping booloperator not
+    def visit_UnaryOp(self, node: ast.UnaryOp):
         '''
         if u == 'Not()':
             self.constraints += ' not'

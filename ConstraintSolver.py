@@ -19,9 +19,7 @@ class ConstraintSolver:
 
     def entrance(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
-        dnf = self.to_dnf(clear)
-        for i in dnf:
-            print(i.dump())
+        dnf = self.to_dnf(constraint)
         res = self.reg(dnf)
         res = self.cleanGrammar(self.cleanGrammar(res))
         return res
@@ -44,7 +42,7 @@ class ConstraintSolver:
         match cons:
             case And():
                 conl, dicl = self.cleanUp(cons.lhs, dic)
-                conr, dicr =self.cleanUp(cons.rhs, dicl)
+                conr, dicr = self.cleanUp(cons.rhs, dicl)
                 return And(conl, conr), dicr
             case Or():
                 conl, dicl = self.cleanUp(cons.lhs, dic)
@@ -93,7 +91,7 @@ class ConstraintSolver:
 
 
 
-    def to_dnf(self, constraint):
+    def to_dnf(self, constraint: Constraint):
         # base case: if the constraint is a Compare or an Equal, return it as a set
         if isinstance(constraint, (Compare, Equal)):
             return {constraint}
@@ -162,15 +160,21 @@ class ConstraintSolver:
         res = list()
         upper, lower, fix, nfix = self.getLength(se)
         if fix is not None:
-            if fix > upper or fix < lower or fix in nfix or fix <= max(dic.keys()):
+            if fix > upper or fix < lower or fix in nfix:
                 return None
+            elif dic.keys():
+                if fix <= max(dic.keys()):
+                    return None
+                else:
+                    for i in range(fix):
+                        res.append("<digit>")
             else:
                 for i in range(fix):
                     res.append("<digit>")
         else:
             for u in dic.keys():
-                if lower < u:
-                    lower = u
+                if lower <= u:
+                    lower = u +1
             for i in range(lower + 1):
                 res.append("<digit>")
             if upper != sys.maxsize:
@@ -210,7 +214,7 @@ class ConstraintSolver:
                 namecount += 1
         if upper == sys.maxsize and fix is None:
             if res[len(res) - 1] == "<digit>":
-                res[len(res - 1)] = "<digits>"
+                res[len(res) - 1] = "<digits>"
             else:
                 res.append("<digitsU>")
         resgram["<element" + str(name) + ">"].append(''.join(res))
@@ -255,7 +259,7 @@ class ConstraintSolver:
         elif isinstance(constraint, Not):
             return self.visitNot(constraint)
         elif isinstance(constraint, Equal):
-            return dict(), dict(), set()
+            return self.visitEqual(constraint)
         elif isinstance(constraint, Compare):
             return self.visitCompare(constraint)
         else:
@@ -263,7 +267,6 @@ class ConstraintSolver:
 
     def visitAnd(self, a: And):
         dict1, ndict1, set1 = self.collectConstraint(a.lhs)
-        print(a.rhs.dump())
         dict2, ndict2, set2 = self.collectConstraint(a.rhs)
         for key in ndict1:
             if ndict2.get(key) != None:
@@ -278,7 +281,22 @@ class ConstraintSolver:
 
     def visitNot(self, no: Not):
         dic, ndict, se = self.collectConstraint(no.operand)
-        return ndict, dic, se
+        resset = set()
+        for s in se:
+            match s[0]:
+                case '==':
+                    resset.add(('!=', s[1]))
+                case '!=':
+                    resset.add(('==', s[1]))
+                case '<':
+                    resset.add(('>=', s[1]))
+                case '<=':
+                    resset.add(('>', s[1]))
+                case '>':
+                    resset.add(('<=', s[1]))
+                case '>=':
+                    resset.add(('<', s[1]))
+        return ndict, dic, resset
 
     def visitCompare(self, comp: Compare):
         if isinstance(comp.lhs, Call):
@@ -291,7 +309,6 @@ class ConstraintSolver:
             else:
                 raise NotImplementedError
         elif isinstance(comp.lhs, Var):
-            print(comp.operator.operator)
             match comp.operator.operator:
                 case ast.Eq():
                     return self.evalEquals(comp.rhs)
@@ -302,7 +319,7 @@ class ConstraintSolver:
 
     def evalStartsWith(self, lhs: Term, rhs: Term, op: Comparator):
         match op.operator:
-            case ast.Eq():
+            case ast.Eq() | ast.Is():
                 if rhs == None:
                     dic = dict()
                     counter = 0
@@ -425,14 +442,6 @@ def test2(s):
     z = y
     s == z
 '''
-    #ti = TypeInferer()
-    #const = ti.entrance(ast.parse(teststr))
-    #print(const.dump())
-    cs = ConstraintSolver(code=ast.parse(teststr))
-    #for i in cs.to_dnf(const):
-        #print(i.dump())
-    print(cs.grammar)
-    #for i in range(10):
-        #print(repr(simple_grammar_fuzzer(gram)))
-
+    #cs = ConstraintSolver(code=ast.parse(teststr))
+    #print(cs.grammar)
 
