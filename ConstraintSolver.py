@@ -61,8 +61,8 @@ class ConstraintSolver:
                 return cons, dic
             case Compare():
                 match cons.lhs:
-                    case ConstStr, ConstInt:
-                        if isinstance(cons.rhs, ConstStr) or isinstance(cons.rhs, ConstInt):
+                    case ConstStr, ConstInt, ConstBool:
+                        if isinstance(cons.rhs, ConstStr) or isinstance(cons.rhs, ConstInt) or isinstance(cons.rhs, ConstBool):
                             return cons, dic
                         he = cons.lhs
                         cons.lhs = cons.rhs
@@ -144,7 +144,6 @@ class ConstraintSolver:
                 elementcount += 1
                 constraintsCollecting.append(constraint)
         flag = False
-        print(constraintsCollecting)
         for i in constraintsCollecting:
             if i != '':
                 self.constraint += f'({i})'
@@ -256,11 +255,11 @@ class ConstraintSolver:
         elif isinstance(constraint, Not):
             return self.visitNot(constraint)
         elif isinstance(constraint, Equal):
-            return self.visitEqual(constraint)
+            return dict(), dict(), set()
         elif isinstance(constraint, Compare):
             return self.visitCompare(constraint)
         else:
-            raise Exception
+            raise Exception()
 
     def visitAnd(self, a: And):
         dict1, ndict1, set1 = self.collectConstraint(a.lhs)
@@ -282,7 +281,7 @@ class ConstraintSolver:
 
     def visitCompare(self, comp: Compare):
         if isinstance(comp.lhs, Call):
-            if isinstance(comp.lhs.func,Constraintclasses.CharAt):
+            if isinstance(comp.lhs.func, Constraintclasses.CharAt):
                 return self.evalCharAt(comp.lhs, comp.rhs, comp.operator)
             elif isinstance(comp.lhs.func, Length):
                 return self.evalLen(comp.rhs, comp.operator)
@@ -398,6 +397,16 @@ if __name__ == '__main__':
     teststr = '''\
 def test(s):
     if s.startsWith("test"):
+        x = True
+        assert s.startsWith("te") == x
+        assert len(s) == 6
+        assert s == "tester"
+    '''
+    teststr2 = '''\
+def test(s):
+    if s.startsWith("test"):
+        x = True
+        assert s.startsWith("te") == x
         assert len(s) == 6
         assert s != "tester"
     else:

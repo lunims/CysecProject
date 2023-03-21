@@ -51,6 +51,8 @@ class Var(Term):
 class ConstBool(Term):
     def __init__(self, val: bool):
         self.value = val
+    def dump(self):
+        return f'ConstBool(value={self.value})'
 
 class ConstStr(Term):
     def __init__(self, val: str):

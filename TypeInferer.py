@@ -33,13 +33,17 @@ class TypeInferer(ast.NodeVisitor):
         if isinstance(compcons, Constraintclasses.Call):
             compcons = Constraintclasses.Compare(op=Comparator(op=ast.Eq), left=compcons, right=ConstBool(val=True))
         ifcons = compcons
-        elsecons = Not(compcons)
+        elsecons = None
+        if len(node.orelse) != 0:
+            elsecons = Not(compcons)
         for b in node.body:
             ifcons = And(ifcons, self.visit(b))
         for e in node.orelse:
             elsecons = And(elsecons, self.visit(e))
-        res = Or(ifcons, elsecons)
-        return res
+        if elsecons is None:
+            return ifcons
+        else:
+            return Or(ifcons, elsecons)
 
     def visit_Compare(self, node: ast.Compare):#TODO: adjust as mentioned
         left = self.visit(node.left)
@@ -59,10 +63,10 @@ class TypeInferer(ast.NodeVisitor):
         res = None
         if isinstance(node.value, str):
             res = ConstStr(node.value)
+        elif isinstance(node.value, bool):
+            res = ConstBool(node.value)
         elif isinstance(node.value, int):
             res = ConstInt(node.value)
-        elif isinstance(node.value, bool):  #added ConstBoold
-            res = ConstBool(node.value)
         else:
             raise NotImplementedError
         return res
@@ -158,12 +162,8 @@ class TypeInferer(ast.NodeVisitor):
 
     def visit_Assign(self, node: ast.Assign):
         val = self.visit(node.value)
-        if len(node.targets) >= 1:
-            res = Equal(self.visit(node.targets[0]), val)
-            for v in node.targets[1:]:
-                neq = Equal(self.visit(v), val)
-                res = And(res, neq)
-            return res
+        res = Equal(self.visit(node.targets[0]), val)
+        return res
 
     def visit_Match(self, node: ast.Match):
         sub = self.visit(node.subject)
