@@ -9,16 +9,21 @@ class FuzzerOfConstraints:
     def gimmeResults(self, code: ast.AST):
         cs = ConstraintSolver(code)
         #print(cs.grammar)
-        fuzz = GrammarFuzzer(cs.grammar)
-        #solver = ISLaSolver(cs.grammar, cs.constraint)
         #print(cs.constraint)
-        #print(solver.solve())
-        #print(solver.solve())
+        fuzz = GrammarFuzzer(cs.grammar)
+        solver = None
+        if cs.constraint == '':
+            solver = ISLaSolver(cs.grammar)
+        else:
+            solver = ISLaSolver(cs.grammar, cs.constraint)
+        #print(cs.constraint)
+        print(solver.solve())
+        print(solver.solve())
         printi = set()
         for i in range(100):
             inp = fuzz.fuzz()
-            #if solver.check(inp):
-            printi.add(inp)
+            if solver.check(inp):
+                printi.add(inp)
         print(printi)
 
 if __name__ == '__main__':
@@ -48,7 +53,7 @@ else:
     if s[0] == 'z':
         assert len(s) == 1
     else:
-        assert s.startsWith("boing") is True
+        assert s.startsWith("boing")
         assert len(s) == 6
     '''
     test3 = '''\
@@ -74,9 +79,10 @@ else:
     assert s[2] != 'A'
     assert s[3] == '('
     '''
+
     fuzziman = FuzzerOfConstraints
     fuzziman.gimmeResults(fuzziman, ast.parse(test1))
-    fuzziman.gimmeResults(fuzziman , ast.parse(test2))
+    fuzziman.gimmeResults(fuzziman, ast.parse(test2))
     fuzziman.gimmeResults(fuzziman, ast.parse(test3))
     #TODO: buildgrammarExpression hatte probleme bei fix values, kleine sachen gefixt, visitNot hat das length set nicht negiert gehabt
 

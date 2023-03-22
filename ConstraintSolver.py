@@ -19,7 +19,7 @@ class ConstraintSolver:
 
     def entrance(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
-        dnf = self.to_dnf(constraint)
+        dnf = self.to_dnf(clear)
         res = self.reg(dnf)
         res = self.cleanGrammar(self.cleanGrammar(res))
         return res
@@ -181,7 +181,9 @@ class ConstraintSolver:
                 while (len(res) < upper):
                     res.append("<digitU>")
             else:
-                uppi = max(ndic.keys()) + 1
+                uppi = 0
+                if ndic.keys():
+                    uppi = max(ndic.keys()) + 1
                 while (len(res) < uppi):
                     res.append("<digitU>")
         for k in dic.keys():

@@ -84,7 +84,12 @@ class TypeInferer(ast.NodeVisitor):
 
 
     def visit_Assert(self, node: ast.Assert):
-        return self.visit(node.test)
+        res = self.visit(node.test)
+        if isinstance(res, Constraintclasses.Call):
+            res = Compare(op=Comparator(op=ast.Eq()),
+                          left=res,
+                          right=ConstBool(True))
+        return res
 
     def visit_Call(self, node: ast.Call):
         name = ''
