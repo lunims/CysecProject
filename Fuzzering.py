@@ -80,6 +80,7 @@ else:
     assert s[3] == '('
     '''
 
+
     fuzziman = FuzzerOfConstraints
     fuzziman.gimmeResults(fuzziman, ast.parse(test1))
     fuzziman.gimmeResults(fuzziman, ast.parse(test2))
