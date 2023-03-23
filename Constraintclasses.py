@@ -85,6 +85,10 @@ class Length(FunSymbol):
     def dump(self):
         return f'len()'
 
+class EndsWith(FunSymbol):
+    def dump(self):
+        return f'endsWith()'
+
 class Call(Term):
     def __init__(self, func: FunSymbol, args: list[Term]):
         self.func = func
@@ -95,6 +99,7 @@ class Call(Term):
         for arg in self.args:
             res += arg.dump()
         return f'Call(func={self.func.dump()}, args=[{res}])'
+
 
 class Compare(Constraint):
     def __init__(self, op: Comparator, left: Term, right: Term):

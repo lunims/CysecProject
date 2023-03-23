@@ -107,6 +107,8 @@ class TypeInferer(ast.NodeVisitor):
                 res = Length()
             case 'startsWith':
                 res = startsWith()
+            case 'endsWith':
+                res = EndsWith()
             case _:
                 return None
         for i in node.args:
@@ -288,6 +290,10 @@ class TypeInferer(ast.NodeVisitor):
 
     def visit_IfExp(self, node: ast.IfExp):
         comp = self.visit(node.test)
+        if isinstance(comp, Constraintclasses.Call):
+            comp = Compare(op=Comparator(op=ast.Eq()),
+                           left=comp,
+                           right=ConstBool(val=True))
         andi = self.visit(node.body)
         ori = self.visit(node.orelse)
         res = Or(And(comp, andi), ori)

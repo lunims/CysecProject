@@ -2,7 +2,9 @@
 #from isla.solver import ISLaSolver
 import ast
 
+from fuzzingbook.GrammarFuzzer import GrammarFuzzer
 from fuzzingbook.Grammars import *
+from isla.solver import ISLaSolver
 
 import Constraintclasses
 from Constraintclasses import *
@@ -27,15 +29,25 @@ class ConstraintSolver:
     def cleanGrammar(self, gr: Grammar):
         he = list()
         it = gr.keys()
+        counterDigit = 0
+        counterDigits = 0
         for k in gr:
             for i in it:
                 for y in gr[i]:
                     if k in y:
                         he.append(k)
+                        if k == '<digit>':
+                            counterDigit += 1
+                        if k == '<digits>':
+                            counterDigits += 1
         res = list(set(it) - set(he))
         res.remove("<start>")
         for i in res:
             del gr[i]
+        if counterDigit == 2:
+            del gr['<digit>']
+        if counterDigits == 1:
+            del gr['<digits>']
         return gr
 
     def cleanUp(self, cons: Constraint, dic: dict()):
@@ -174,8 +186,8 @@ class ConstraintSolver:
         else:
             for u in dic.keys():
                 if lower <= u:
-                    lower = u +1
-            for i in range(lower + 1):
+                    lower = u + 1
+            for i in range(lower):  # TODO: changed + 1 in iteration, maybe wrong
                 res.append("<digit>")
             if upper != sys.maxsize:
                 while (len(res) < upper):
@@ -308,6 +320,8 @@ class ConstraintSolver:
                 return self.evalLen(comp.rhs, comp.operator)
             elif isinstance(comp.lhs.func, Constraintclasses.startsWith):
                 return self.evalStartsWith(comp.lhs, comp.rhs, comp.operator)
+            elif isinstance(comp.lhs.func, Constraintclasses.EndsWith):
+                return self.evalEndsWith(comp.lhs, comp.rhs, comp.operator)
             else:
                 raise NotImplementedError
         elif isinstance(comp.lhs, Var):
@@ -318,6 +332,44 @@ class ConstraintSolver:
                     return self.evalNotEquals(comp.rhs)
                 case _:
                     raise NotImplementedError
+
+    def evalEndsWith(self, lhs: Term, rhs: Term, op: Comparator):
+        match op.operator:
+            case ast.Eq() | ast.Is():
+                if rhs.value:
+                    counter = 0 - len(lhs.args[1].value)
+                    dic = dict()
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    return dic, dict(), set()
+                else:
+                    counter = 0 - len(lhs.args[1].value)
+                    dic = dict()
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    return dict(), dic, set()
+            case ast.NotEq:
+                if rhs.value:
+                    counter = 0 - len(lhs.args[1].value)
+                    dic = dict()
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    return dict(), dic, set()
+                else:
+                    counter = 0 - len(lhs.args[1].value)
+                    dic = dict()
+                    for i in list(lhs.args[1].value):
+                        dic[counter] = i
+                        counter += 1
+                    return dic, dict(), set()
+            case _:
+                raise NotImplementedError
+
+
+
 
     def evalStartsWith(self, lhs: Term, rhs: Term, op: Comparator):
         match op.operator:
@@ -358,6 +410,8 @@ class ConstraintSolver:
                         dic[counter] = i
                         counter += 1
                     return dic, dict(), set()
+            case _:
+                raise NotImplementedError
 
     def visitEqual(self, equal: Equal):
         return dict(), dict(), set()
@@ -416,11 +470,8 @@ class ConstraintSolver:
 if __name__ == '__main__':
     teststr = '''\
 def test(s):
-    if s.startsWith("test") == True:
-        x = True
-        assert s.startsWith("te") == x
-        assert len(s) == 6
-        assert s == "tester"
+    if s[0] == 'a':
+        assert len(s) == 1
     '''
     teststr2 = '''\
 def test(s):
@@ -444,6 +495,14 @@ def test2(s):
     z = y
     s == z
 '''
-    #cs = ConstraintSolver(code=ast.parse(teststr))
-    #print(cs.grammar)
-
+    cs = ConstraintSolver(code=ast.parse(teststr))
+    print(cs.grammar)
+    solver = ISLaSolver(cs.grammar, 'str.len(<element0>) = 6')
+    fuzz = GrammarFuzzer(cs.grammar)
+    printi = set()
+    for i in range(100):
+        inp = fuzz.fuzz()
+        #print(inp)
+        if solver.check(inp):
+            printi.add(inp)
+    print(printi)
