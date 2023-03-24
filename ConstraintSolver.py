@@ -44,9 +44,10 @@ class ConstraintSolver:
         res.remove("<start>")
         for i in res:
             del gr[i]
-        if counterDigit == 2:
+        if counterDigit == 2 and counterDigits == 1:
             del gr['<digit>']
-        if counterDigits == 1:
+            del gr['<digits>']
+        elif counterDigits == 1:
             del gr['<digits>']
         return gr
 
@@ -144,9 +145,9 @@ class ConstraintSolver:
         }
         elementcount = 0
         for s in se:
-            rdic, rndic, rset = self.collectConstraint(s)
-            if self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit) is not None:
-                gramdict, constraint = self.build_GrammarExpression(rdic, rndic, rset, elementcount, digit)
+            rdic, rndic, rset, startend= self.collectConstraint(s)
+            if self.build_GrammarExpression(rdic, rndic, rset, startend, elementcount, digit) is not None:
+                gramdict, constraint = self.build_GrammarExpression(rdic, rndic, rset, startend, elementcount, digit)
                 res = gramdict.get("<string>")
                 grammar["<string>"].append(res)
                 del gramdict["<string>"]
@@ -162,42 +163,85 @@ class ConstraintSolver:
                 flag = True
         return grammar
 
-    def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), name: int, digit: list()):
-        if self.getLength(se) is None:
-            return None
+    def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), startend: set(), name: int, digit: list()):
         resgram: Grammar = {
             "<string>": "<element" + str(name) + ">",
             "<element" + str(name) + ">": [],
         }
+        maxidic = 0
+        maxindic = 0
+        st = ''
+        et = ''
+        for s in startend:
+            if s[0] == 'st':
+                if len(s[1]) > len(st):
+                    if s[1].startswith(st):
+                        st = s[1]
+                    else:
+                        return None
+                else:
+                    if not st.startswith(s[1]):
+                        return None
+            if s[0] == 'et':
+                if len(s[1]) > len(et):
+                    if s[1].endswith(et):
+                        et = s[1]
+                    else:
+                        return None
+                else:
+                    if not et.endswith(s[1]):
+                        return None
+        common = ''
+        for i in range(len(st)):
+            if et.startswith(st[i:]):
+                common = st[i:]
+                break
+        if len(common) != 0:
+            resgram["<element" + str(name) + ">"].append(st + et[len(common):])
+        maxse = (len(st) - len(common)) + (len(et) - len(common))
+        for i in range(len(st)):
+            if dic.keys():
+                if i in dic.keys():
+                    if dic[i] != st[i]:
+                        return None
+                else:
+                    dic[i] = st[i]
+            else:
+                dic[i] = st[i]
+        if dic.keys():
+            maxidic = max(dic.keys())
+        if ndic.keys():
+            maxindic = max(ndic.keys())
+        if self.getLength(se) is None:
+            return None
         res = list()
         upper, lower, fix, nfix = self.getLength(se)
         if fix is not None:
-            if fix > upper or fix < lower or fix in nfix:
+            if fix > upper or fix < lower or fix in nfix or fix <= maxidic or fix <= maxse:
                 return None
-            elif dic.keys():
-                if fix <= max(dic.keys()):
-                    return None
-                else:
-                    for i in range(fix):
-                        res.append("<digit>")
             else:
+                for e in range(len(et)):
+                    dic[fix - len(et) + e] = et[e]
                 for i in range(fix):
                     res.append("<digit>")
         else:
-            for u in dic.keys():
-                if lower <= u:
-                    lower = u + 1
-            for i in range(lower):  # TODO: changed + 1 in iteration, maybe wrong
+            lower = max(maxidic + 1, lower + 1, maxse)
+            for i in range(lower):  #TODO: changed + 1 in iteration, maybe wrong
                 res.append("<digit>")
-            if upper != sys.maxsize:
-                while (len(res) < upper):
+            if upper != sys.maxsize and upper >= lower:
+                while (len(res) < (upper - len(et))):
                     res.append("<digitU>")
+                for e in list(et):
+                    res.append(e)
             else:
-                uppi = 0
-                if ndic.keys():
-                    uppi = max(ndic.keys()) + 1
-                while (len(res) < uppi):
+                while (len(res) < (maxindic + 1 - len(et))):
                     res.append("<digitU>")
+                if res[len(res) - 1] == "<digit>":
+                    res[len(res) - 1] = "<digits>"
+                else:
+                    res.append("<digitsU>")
+                for e in list(et):
+                    res.append(e)
         for k in dic.keys():
             if res[k] in digit and res[k] != dic.get(k):
                 return None
@@ -209,6 +253,11 @@ class ConstraintSolver:
             elif res[n] in digit and res[n] in list(ndic[n]):
                 return None
             else:
+                if res[n].startswith("<digits>"):
+                    res[n] = "<digitsU>"
+                    res.insert(n, "<digit>")
+                if res[n].startswith("<digitsU>"):
+                    res.insert(n, "<digitU>")
                 newname = "<digit"
                 for i in range(namecount):
                     newname += str(name)
@@ -226,11 +275,6 @@ class ConstraintSolver:
                     res[n] = newname + ">"
                     resgram[newname + ">"] = newdigi
                 namecount += 1
-        if upper == sys.maxsize and fix is None:
-            if res[len(res) - 1] == "<digit>":
-                res[len(res) - 1] = "<digits>"
-            else:
-                res.append("<digitsU>")
         resgram["<element" + str(name) + ">"].append(''.join(res))
         cons = list()
         for i in nfix:
@@ -280,22 +324,24 @@ class ConstraintSolver:
             raise Exception()
 
     def visitAnd(self, a: And):
-        dict1, ndict1, set1 = self.collectConstraint(a.lhs)
-        dict2, ndict2, set2 = self.collectConstraint(a.rhs)
+        dict1, ndict1, set1, startend1 = self.collectConstraint(a.lhs)
+        dict2, ndict2, set2, startend2 = self.collectConstraint(a.rhs)
         for key in ndict1:
             if ndict2.get(key) != None:
                 ndict1[key] = ndict1.get(key) + ndict2.get(key)
                 del ndict2[key]
         resSet = set1.union(set2)
+        resstartend = startend1.union(startend2)
         dict2.update(dict1)
         ndict2.update(ndict1)
-        return dict2, ndict2, resSet
+        return dict2, ndict2, resSet, resstartend
 
 
 
     def visitNot(self, no: Not):
-        dic, ndict, se = self.collectConstraint(no.operand)
+        dic, ndict, se, startend = self.collectConstraint(no.operand)
         resset = set()
+        resstartend = set()
         for s in se:
             match s[0]:
                 case '==':
@@ -310,7 +356,17 @@ class ConstraintSolver:
                     resset.add(('<=', s[1]))
                 case '>=':
                     resset.add(('<', s[1]))
-        return ndict, dic, resset
+        for ste in startend:
+            match ste[0]:
+                case 'sf':
+                    resstartend.add('st', ste[1])
+                case 'st':
+                    resstartend.add('sf', ste[1])
+                case 'ef':
+                    resstartend.add('et', ste[1])
+                case 'et':
+                    resstartend.add('ef', ste[1])
+        return ndict, dic, resset, resstartend
 
     def visitCompare(self, comp: Compare):
         if isinstance(comp.lhs, Call):
@@ -334,37 +390,22 @@ class ConstraintSolver:
                     raise NotImplementedError
 
     def evalEndsWith(self, lhs: Term, rhs: Term, op: Comparator):
+        res = set()
         match op.operator:
             case ast.Eq() | ast.Is():
                 if rhs.value:
-                    counter = 0 - len(lhs.args[1].value)
-                    dic = dict()
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dic, dict(), set()
+                    res.add(('et', lhs.args[1].value))
+                    return dict(), dict(), set(), res
                 else:
-                    counter = 0 - len(lhs.args[1].value)
-                    dic = dict()
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dict(), dic, set()
-            case ast.NotEq:
+                    res.add(('ef', lhs.args[1].value))
+                    return dict(), dict(), set(), res
+            case ast.NotEq():
                 if rhs.value:
-                    counter = 0 - len(lhs.args[1].value)
-                    dic = dict()
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dict(), dic, set()
+                    res.add(('ef', lhs.args[1].value))
+                    return dict(), dict(), set(), res
                 else:
-                    counter = 0 - len(lhs.args[1].value)
-                    dic = dict()
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dic, dict(), set()
+                    res.add(('et', lhs.args[1].value))
+                    return dict(), dict(), set(), res
             case _:
                 raise NotImplementedError
 
@@ -372,60 +413,46 @@ class ConstraintSolver:
 
 
     def evalStartsWith(self, lhs: Term, rhs: Term, op: Comparator):
+        res = set()
         match op.operator:
             case ast.Eq() | ast.Is():
-                if rhs == None:
+                #TODO: unnötig weil wir immer ein Compare erstellen?
+                '''if rhs == None:
                     dic = dict()
                     counter = 0
                     for i in list(lhs.args[1].value):
                         dic[counter] = i
                         counter += 1
-                    return dic, dict(), set()
+                    return dic, dict(), set()'''
                 if rhs.value:
-                    dic = dict()
-                    counter = 0
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dic, dict(), set()
+                    res.add(('st', lhs.args[1].value))
+                    return dict(), dict(), set(), res
                 else:
-                    dic = dict()
-                    counter = 0
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dict(), dic, set()
+                    res.add(('sf', lhs.args[1].value))
+                    return dict(), dict(), set(), res
             case ast.NotEq():
                 if rhs.value:
-                    dic = dict()
-                    counter = 0
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dict(), dic, set()
+                    res.add(('sf', lhs.args[1].value))
+                    return dict(), dict(), set(), res
                 else:
-                    dic = dict()
-                    counter = 0
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dic, dict(), set()
+                    res.add(('st', lhs.args[1].value))
+                    return dict(), dict(), set(), res
             case _:
                 raise NotImplementedError
 
     def visitEqual(self, equal: Equal):
-        return dict(), dict(), set()
+        return dict(), dict(), set(), set()
 
     def evalCharAt(self, lhs: Call, rhs: ConstStr, op: Comparator):
         match op.operator:
             case ast.Eq():
                 dic = dict()
                 dic[lhs.args[1].value] = rhs.value
-                return dic, dict(), set()
+                return dic, dict(), set(), set()
             case ast.NotEq():
                 dic = dict()
                 dic[lhs.args[1].value] = rhs.value
-                return dict(), dic, set()
+                return dict(), dic, set(), set()
             case _:
                 raise NotImplementedError
 
@@ -433,17 +460,17 @@ class ConstraintSolver:
     def evalLen(self, rhs: ConstInt, op: Comparator):
         match op.operator:
             case ast.Eq():
-                return dict(), dict(), {('==', rhs.value)}
+                return dict(), dict(), {('==', rhs.value)}, set()
             case ast.NotEq():
-                return dict(), dict(), {('!=', rhs.value)}
+                return dict(), dict(), {('!=', rhs.value)}, set()
             case ast.Lt():
-                return dict(), dict(), {('<', rhs.value)}
+                return dict(), dict(), {('<', rhs.value)}, set()
             case ast.LtE():
-                return dict(), dict(), {('<=', rhs.value)}
+                return dict(), dict(), {('<=', rhs.value)}, set()
             case ast.Gt():
-                return dict(), dict(), {('>', rhs.value)}
+                return dict(), dict(), {('>', rhs.value)}, set()
             case ast.GtE():
-                return dict(), dict(), {('>=', rhs.value)}
+                return dict(), dict(), {('>=', rhs.value)}, set()
             case _:
                 raise NotImplementedError
 
@@ -455,10 +482,10 @@ class ConstraintSolver:
             counter += 1
         se = set()
         se.add(('==', counter))
-        return dic, dict(), se
+        return dic, dict(), se, set()
 
     def evalNotEquals(self, rhs: ConstStr):
-        return dict(), dict(), set()
+        return dict(), dict(), set(), set()
 
 
 

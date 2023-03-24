@@ -8,8 +8,8 @@ from isla.solver import ISLaSolver
 class FuzzerOfConstraints:
     def gimmeResults(self, code: ast.AST):
         cs = ConstraintSolver(code)
-        #print(cs.grammar)
-        #print(cs.constraint)
+        print(cs.grammar)
+        print(cs.constraint)
         fuzz = GrammarFuzzer(cs.grammar)
         solver = None
         if cs.constraint == '':
@@ -79,11 +79,16 @@ else:
     assert s[2] != 'A'
     assert s[3] == '('
     '''
+    testi = '''
+if len(s) < 20:
+    assert s.startsWith('abcdefg')
+    assert s.endsWith('defghij')
+    '''
 
 
     fuzziman = FuzzerOfConstraints
-    fuzziman.gimmeResults(fuzziman, ast.parse(test1))
-    fuzziman.gimmeResults(fuzziman, ast.parse(test2))
-    fuzziman.gimmeResults(fuzziman, ast.parse(test3))
-    #TODO: buildgrammarExpression hatte probleme bei fix values, kleine sachen gefixt, visitNot hat das length set nicht negiert gehabt
+    #fuzziman.gimmeResults(fuzziman, ast.parse(test1))
+    #fuzziman.gimmeResults(fuzziman, ast.parse(test2))
+    #fuzziman.gimmeResults(fuzziman, ast.parse(test3))
+    fuzziman.gimmeResults(fuzziman, ast.parse(testi))
 
