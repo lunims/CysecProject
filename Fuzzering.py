@@ -87,7 +87,7 @@ if len(s) < 20:
 
 
     fuzziman = FuzzerOfConstraints
-    #fuzziman.gimmeResults(fuzziman, ast.parse(test1))
+    #fuzziman.gimmeResults(fuzziman, ast.parse(test1.py))
     #fuzziman.gimmeResults(fuzziman, ast.parse(test2))
     #fuzziman.gimmeResults(fuzziman, ast.parse(test3))
     fuzziman.gimmeResults(fuzziman, ast.parse(testi))
