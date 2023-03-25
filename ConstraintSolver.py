@@ -164,33 +164,49 @@ class ConstraintSolver:
         return grammar
 
     def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), startend: set(), name: int, digit: list()):
+        digit = list()
+        for i in range(32, 127):
+            digit.append(chr(i))
         resgram: Grammar = {
             "<string>": "<element" + str(name) + ">",
             "<element" + str(name) + ">": [],
+            "<digits>": ["<digit>""<digits>", "<digit>"],
+            "<digitsU>": ["", "<digits>"],
+            "<digit>": digit,
+            "<digitU>": ["", "<digit>"],
         }
         maxidic = 0
         maxindic = 0
         st = ''
+        sf = 0
         et = ''
+        ef = 0
         for s in startend:
-            if s[0] == 'st':
-                if len(s[1]) > len(st):
-                    if s[1].startswith(st):
-                        st = s[1]
+            match s[0]:
+                case 'st':
+                    if len(s[1]) > len(st):
+                        if s[1].startswith(st):
+                            st = s[1]
+                        else:
+                            return None
                     else:
-                        return None
-                else:
-                    if not st.startswith(s[1]):
-                        return None
-            if s[0] == 'et':
-                if len(s[1]) > len(et):
-                    if s[1].endswith(et):
-                        et = s[1]
+                        if not st.startswith(s[1]):
+                            return None
+                case 'et':
+                    if len(s[1]) > len(et):
+                        if s[1].endswith(et):
+                            et = s[1]
+                        else:
+                            return None
                     else:
-                        return None
-                else:
-                    if not et.endswith(s[1]):
-                        return None
+                        if not et.endswith(s[1]):
+                            return None
+                case 'sf':
+                    sf = max(sf, len(s[1]))
+                case 'ef':
+                    ef = max(ef, len(s[1]))
+                case _:
+                    raise Exception("Falsches Set")
         common = ''
         for i in range(len(st)):
             if et.startswith(st[i:]):
@@ -226,7 +242,7 @@ class ConstraintSolver:
                     res.append("<digit>")
         else:
             lower = max(maxidic + 1, lower + 1, maxse)
-            for i in range(lower):  #TODO: changed + 1 in iteration, maybe wrong
+            for i in range(lower):
                 res.append("<digit>")
             if upper != sys.maxsize and upper >= lower:
                 while (len(res) < (upper - len(et))):
@@ -275,13 +291,153 @@ class ConstraintSolver:
                     res[n] = newname + ">"
                     resgram[newname + ">"] = newdigi
                 namecount += 1
-        resgram["<element" + str(name) + ">"].append(''.join(res))
+        if sf != 0 or ef != 0:
+            resgram = self.buildNegativeWithGrammar(resgram, res, startend, name)
+        else:
+            resgram["<element" + str(name) + ">"].append(''.join(res))
         cons = list()
         for i in nfix:
             if lower <= i <= upper:
                 cons.append("not(str.len(<element" + str(name) + ">) = " + str(i) + ")")
         cons = " and ".join(cons)
         return resgram, cons
+
+    def buildNegativeWithGrammar(self, resgram: Grammar, element: list(), negse: set(), name: int):
+        if "<digits>" in element or "<digitsU>" in element:
+            negs = list()
+            nege = list()
+            fixchar = dict()
+            for n in negse:
+                match n[0]:
+                    case 'sf':
+                        if len(n[1]) <= len(element):
+                            negs.append(n[1])
+                    case 'ef':
+                        if len(n[1]) <= len(element):
+                            nege.append(n[1])
+            for e in range(len(element)):
+                if len(element[e]) == 1:
+                    fixchar[e] = element[e]
+            for ns in negs:
+                for test in range(len(ns)):
+                    if test in fixchar.keys():
+                        if ns[test] != fixchar.get(test):
+                            negs.remove(ns)
+            namecount = 1
+            maxns = len(max(negs, key=len))
+            catch = ""
+            if len(element) <= maxns:
+                catch = element[len(element) - 1]
+                element[len(element) - 1] = "digit"
+            while len(element) < maxns:
+                element.append("<digit>")
+            element.append(catch)
+            for ns in negs:
+                for s in range(len(ns)):
+                    if len(element[s]) == 1:
+                        pass
+                    else:
+                        newdigi = list()
+                        newele = list()
+                        newname = "<notelement"
+                        newdigname = "<notdigit"
+                        for i in range(namecount):
+                            newname += str(name)
+                            newdigname += str(name)
+                        newname += ">"
+                        newdigname += ">"
+                        namecount += 1
+                        for e in element:
+                            newele.append(e)
+                        for d in resgram[element[s]]:
+                            newdigi.append(d)
+                        newdigi.remove(ns[s])
+                        newele[s] = newdigname
+                        resgram["<element" + str(name) + ">"].append(newname)
+                        resgram[newdigname] = newdigi
+                        resgram[newname] = []
+                        resgram[newname].append(''.join(newele))
+            pass #TODO for endswith but very hard
+        else:
+            negs = list()
+            nege = list()
+            fixchar = dict()
+            for n in negse:
+                match n[0]:
+                    case 'sf':
+                        if len(n[1]) <= len(element):
+                            negs.append(n[1])
+                    case 'ef':
+                        if len(n[1]) <= len(element):
+                            nege.append(n[1])
+            for e in range(len(element)):
+                if len(element[e]) == 1:
+                    fixchar[e] = element[e]
+            for ns in negs:
+                for test in range(len(ns)):
+                    if test in fixchar.keys():
+                        if ns[test] != fixchar.get(test):
+                            negs.remove(ns)
+            for ne in nege:
+                for test in range(len(ne)):
+                    if (len(element) - 1 - test)  in fixchar.keys():
+                        if ne[len(ne) - 1 - test] != fixchar.get(len(element) - 1 - test):
+                            nege.remove(ne)
+            namecount = 1
+            for ns in negs:
+                for s in range(len(ns)):
+                    if len(element[s]) == 1:
+                        pass
+                    else:
+                        newdigi = list()
+                        newele = list()
+                        newname = "<notelement"
+                        newdigname = "<notdigit"
+                        for i in range(namecount):
+                            newname += str(name)
+                            newdigname += str(name)
+                        newname += ">"
+                        newdigname += ">"
+                        namecount += 1
+                        for e in element:
+                            newele.append(e)
+                        for d in resgram[element[s]]:
+                            newdigi.append(d)
+                        newdigi.remove(ns[s])
+                        newele[s] = newdigname
+                        resgram[newdigname] = newdigi
+                        resgram["<element" + str(name) + ">"].append(newname)
+                        resgram[newname] = []
+                        resgram[newname].append(''.join(newele))
+            for ne in nege:
+                ne = ne[::-1]
+                for e in range(len(ne)):
+                    if len(element[len(element) - 1 - e]) == 1:
+                        pass
+                    else:
+                        newdigi = list()
+                        newele = list()
+                        newname ="<notelement"
+                        newdigname = "<notdigit"
+                        for i in range(namecount):
+                            newname += str(name)
+                            newdigname += ">"
+                        newname += ">"
+                        newdigname += ">"
+                        namecount += 1
+                        for el in element:
+                            newele.append(el)
+                        for d in resgram[element[len(element) - 1 - e]]:
+                            newdigi.append(d)
+                        newdigi.remove(ne[e])
+                        newele[len(element) - 1 - e] = newdigname
+                        resgram[newdigname] = newdigi
+                        resgram["<element" + str(name) + ">"].append(newname)
+                        resgram[newname] = []
+                        resgram[newname].append(''.join(newele))
+        return resgram
+
+
 
     def getLength(self, se: set()):
         upper = sys.maxsize
@@ -359,13 +515,13 @@ class ConstraintSolver:
         for ste in startend:
             match ste[0]:
                 case 'sf':
-                    resstartend.add('st', ste[1])
+                    resstartend.add(('st', ste[1]))
                 case 'st':
-                    resstartend.add('sf', ste[1])
+                    resstartend.add(('sf', ste[1]))
                 case 'ef':
-                    resstartend.add('et', ste[1])
+                    resstartend.add(('et', ste[1]))
                 case 'et':
-                    resstartend.add('ef', ste[1])
+                    resstartend.add(('ef', ste[1]))
         return ndict, dic, resset, resstartend
 
     def visitCompare(self, comp: Compare):
@@ -415,15 +571,14 @@ class ConstraintSolver:
     def evalStartsWith(self, lhs: Term, rhs: Term, op: Comparator):
         res = set()
         match op.operator:
-            case ast.Eq() | ast.Is():
-                #TODO: unnötig weil wir immer ein Compare erstellen?
-                '''if rhs == None:
-                    dic = dict()
-                    counter = 0
-                    for i in list(lhs.args[1].value):
-                        dic[counter] = i
-                        counter += 1
-                    return dic, dict(), set()'''
+            case ast.Eq():
+                if rhs.value:
+                    res.add(('st', lhs.args[1].value))
+                    return dict(), dict(), set(), res
+                else:
+                    res.add(('sf', lhs.args[1].value))
+                    return dict(), dict(), set(), res
+            case ast.Is():
                 if rhs.value:
                     res.add(('st', lhs.args[1].value))
                     return dict(), dict(), set(), res

@@ -110,7 +110,7 @@ class Compare(Constraint):
     def dump(self):
         return f'Compare(operator={self.operator.dump()}, lhs={self.lhs.dump()}, rhs={self.rhs.dump()})'
 
-class Equal(Constraint): #TODO: for assigntracking
+class Equal(Constraint):
     def __init__(self, var: Var, val: Term):
         self.name = var
         self.value = val

@@ -31,7 +31,7 @@ class TypeInferer(ast.NodeVisitor):
     def visit_If(self, node: ast.If):
         compcons = self.visit(node.test)
         if isinstance(compcons, Constraintclasses.Call):
-            compcons = Constraintclasses.Compare(op=Comparator(op=ast.Eq), left=compcons, right=ConstBool(val=True))
+            compcons = Constraintclasses.Compare(op=Comparator(op=ast.Eq()), left=compcons, right=ConstBool(val=True))
         ifcons = compcons
         elsecons = None
         if len(node.orelse) != 0:

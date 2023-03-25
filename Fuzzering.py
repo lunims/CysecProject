@@ -80,9 +80,11 @@ else:
     assert s[3] == '('
     '''
     testi = '''
-if len(s) < 20:
-    assert s.startsWith('abcdefg')
-    assert s.endsWith('defghij')
+if len(s) < 10:
+    if s.startsWith('efg'):
+        assert s.endsWith('fghi')
+    else:
+        assert s[2] == 'g'
     '''
 
 
