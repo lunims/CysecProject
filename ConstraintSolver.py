@@ -251,7 +251,7 @@ class ConstraintSolver:
                     res.append(e)
             else:
                 while (len(res) < (maxindic + 1 - len(et))):
-                    res.append("<digitU>")
+                    res.append("<digit>")
                 if res[len(res) - 1] == "<digit>":
                     res[len(res) - 1] = "<digits>"
                 else:
