@@ -1,18 +1,13 @@
-import ast
-from TypeInferer import TypeInferer
 from ConstraintSolver import ConstraintSolver
-from fuzzingbook.Grammars import *
 from fuzzingbook.GrammarFuzzer import *
-import isla
 from isla.solver import ISLaSolver
-import Constraintclasses
 from Constraintclasses import *
 import argparse
 from pathlib import Path
 
-def fuzzing(grammar: Grammar, constraint: str, size:int):
+
+def fuzzing(grammar: Grammar, constraint: str, size: int):
     fuzz = GrammarFuzzer(grammar)
-    solver = None
     if constraint == '':
         solver = ISLaSolver(grammar)
     else:
@@ -23,6 +18,7 @@ def fuzzing(grammar: Grammar, constraint: str, size:int):
         if solver.check(inp):
             printi.add(inp)
     return printi
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -55,7 +51,7 @@ if __name__ == '__main__':
         if cs.constraint == '':
             print("There is no additional constraint for ISLa")
         else:
-            print(cs.constraint)
+            print(f'Additional ISLa Constraint: {cs.constraint}')
 
     if gr:
         print(cs.grammar)
@@ -64,6 +60,7 @@ if __name__ == '__main__':
 
     if args.fuzz is not None:
         out = fuzzing(grammar=cs.grammar, constraint=cs.constraint, size=args.fuzz)
+        print(f'Generated following set of inputs for function "{function_name}":')
         print(out)
 
     if compile:
@@ -72,6 +69,12 @@ if __name__ == '__main__':
         codeObject = compile(tree, source_dir, 'exec')
         exec(codeObject)
         function = locals()[function_name]
+        num_errors = 0
         for i in out:
-            print(i)
-            function(i)
+            try:
+                function(i)
+            except Exception as e:
+                num_errors += 1
+                print(f'Error: {e} with input:{i}')
+        print(f'Ran function "{function_name}" a total number of {len(out)} times')
+        print(f'Erros occured: {num_errors}')
