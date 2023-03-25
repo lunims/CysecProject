@@ -17,7 +17,6 @@ class ConstraintSolver:
         self.constraint = ''
         ti = TypeInferer()
         const = ti.entrance(code)
-        print(const.dump())
         self.grammar = self.entrance(const)
 
     def entrance(self, constraint: Constraint):
@@ -253,10 +252,10 @@ class ConstraintSolver:
             else:
                 while (len(res) < (maxindic + 1 - len(et))):
                     res.append("<digit>")
-                if res[len(res) - 1] == "<digit>":
+                """if res[len(res) - 1] == "<digit>":
                     res[len(res) - 1] = "<digits>"
-                else:
-                    res.append("<digitsU>")
+                else:"""
+                res.append("<digitsU>")
                 for e in list(et):
                     res.append(e)
         for k in dic.keys():
@@ -311,11 +310,9 @@ class ConstraintSolver:
             for n in negse:
                 match n[0]:
                     case 'sf':
-                        if len(n[1]) <= len(element):
-                            negs.append(n[1])
+                        negs.append(n[1])
                     case 'ef':
-                        if len(n[1]) <= len(element):
-                            nege.append(n[1])
+                        nege.append(n[1])
             for e in range(len(element)):
                 if len(element[e]) == 1:
                     fixchar[e] = element[e]
@@ -326,12 +323,12 @@ class ConstraintSolver:
                             negs.remove(ns)
             namecount = 1
             maxns = 0
-            if len(negs) != 0:
+            if negs != []:
                 maxns = len(max(negs, key=len))
             catch = ""
             if len(element) <= maxns:
                 catch = element[len(element) - 1]
-                element[len(element) - 1] = "digit"
+                element[len(element) - 1] = "<digit>"
             while len(element) < maxns:
                 element.append("<digit>")
             element.append(catch)

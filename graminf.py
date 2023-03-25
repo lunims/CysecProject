@@ -63,7 +63,7 @@ if __name__ == '__main__':
         print(f'Generated following set of inputs for function "{function_name}":')
         print(out)
 
-    if compile:
+    if comp:
         if out is None:
             out = fuzzing(grammar=cs.grammar, constraint=cs.constraint, size=42)
         codeObject = compile(tree, source_dir, 'exec')
