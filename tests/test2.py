@@ -13,5 +13,5 @@ def test(s):
         if s[0] == 'z':
             assert len(s) == 1
         else:
-            assert s.startsWith("boing")
+            assert s.startswith("boing")
             assert len(s) == 6

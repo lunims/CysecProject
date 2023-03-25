@@ -17,6 +17,7 @@ class ConstraintSolver:
         self.constraint = ''
         ti = TypeInferer()
         const = ti.entrance(code)
+        print(const.dump())
         self.grammar = self.entrance(const)
 
     def entrance(self, constraint: Constraint):
@@ -324,7 +325,9 @@ class ConstraintSolver:
                         if ns[test] != fixchar.get(test):
                             negs.remove(ns)
             namecount = 1
-            maxns = len(max(negs, key=len))
+            maxns = 0
+            if len(negs) != 0:
+                maxns = len(max(negs, key=len))
             catch = ""
             if len(element) <= maxns:
                 catch = element[len(element) - 1]

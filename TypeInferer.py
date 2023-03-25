@@ -105,9 +105,9 @@ class TypeInferer(ast.NodeVisitor):
         match name:
             case 'len':
                 res = Length()
-            case 'startsWith':
+            case 'startswith':
                 res = startsWith()
-            case 'endsWith':
+            case 'endswith':
                 res = EndsWith()
             case _:
                 return None
