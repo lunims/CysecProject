@@ -34,7 +34,6 @@ def test(s):
     else:
         assert len(s) != 3
         assert s[0] != 'z'
-        assert s[1] == 'b'
         assert s[4] != 'm'
         assert s[7] != 't'
     '''
@@ -87,10 +86,25 @@ if len(s) < 10:
         assert s[2] == 'g'
     '''
 
-
-    fuzziman = FuzzerOfConstraints
+    cs = ConstraintSolver(code=ast.parse(test1))
+    cs.grammar['<sub>'] = ["test"]
+    #print(cs.grammar['<element0>'][0])
+    print(cs.grammar['<element0>'][0]+ '<sub>')
+    cs.grammar['<element0>'] = [cs.grammar['<element0>'][0] + '<sub>']
+    print(cs.grammar)
+    solver = ISLaSolver(cs.grammar, "str.contains(<digit>, <sub>)")
+    print(solver.solve())
+    print(solver.solve())
+    fuzz = GrammarFuzzer(cs.grammar)
+    printi = set()
+    for i in range(100):
+        inp = fuzz.fuzz()
+        if solver.check(inp):
+            printi.add(inp)
+    print(printi)
+    #fuzziman = FuzzerOfConstraints
     #fuzziman.gimmeResults(fuzziman, ast.parse(test1.py))
     #fuzziman.gimmeResults(fuzziman, ast.parse(test2))
     #fuzziman.gimmeResults(fuzziman, ast.parse(test3))
-    fuzziman.gimmeResults(fuzziman, ast.parse(testi))
+    #fuzziman.gimmeResults(fuzziman, ast.parse(testi))
 
