@@ -89,6 +89,10 @@ class EndsWith(FunSymbol):
     def dump(self):
         return f'endsWith()'
 
+class Contains(FunSymbol):
+    def dump(self):
+        return f'contains()'
+
 class Call(Term):
     def __init__(self, func: FunSymbol, args: list[Term]):
         self.func = func

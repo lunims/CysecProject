@@ -5,25 +5,51 @@ from fuzzingbook.Grammars import *
 from fuzzingbook.GrammarFuzzer import *
 import isla
 from isla.solver import ISLaSolver
+import copy
 class FuzzerOfConstraints:
     def gimmeResults(self, code: ast.AST):
         cs = ConstraintSolver(code)
-        print(cs.grammar)
-        print(cs.constraint)
+        #print(cs.grammar)
+        #print(cs.constraint)
+        print(cs.cont)
+        #print(cs.notcont)
         fuzz = GrammarFuzzer(cs.grammar)
+        newGram = copy.deepcopy(cs.grammar)
+        for i in range(len(newGram["<string>"])):
+            newGram["<string>"][i] = "<" + newGram["<string>"][i].split("<")[1]
         solver = None
         if cs.constraint == '':
-            solver = ISLaSolver(cs.grammar)
+            solver = ISLaSolver(newGram)
         else:
-            solver = ISLaSolver(cs.grammar, cs.constraint)
-        #print(cs.constraint)
-        print(solver.solve())
-        print(solver.solve())
+            solver = ISLaSolver(newGram, cs.constraint)
+        solver.solve()
+        solver.solve()
         printi = set()
-        for i in range(100):
+        for i in range(10000):
             inp = fuzz.fuzz()
-            if solver.check(inp):
-                printi.add(inp)
+            nameflag = inp[7]
+            conflag = True
+            notconflag = True
+            inp = inp[8:]
+            con = list()
+            notcon = list()
+            for c in cs.cont:
+                if c[0] == nameflag:
+                    con = c[1:]
+                    break
+            for n in cs.notcont:
+                if n[0] == nameflag:
+                    notcon = n[1:]
+                    break
+            for c in con:
+                if c.value not in inp:
+                    conflag = False
+            for n in notcon:
+                if n.value in inp:
+                    notconflag = False
+            if conflag and notconflag:
+                if solver.check(inp):
+                    printi.add(inp)
         print(printi)
 
 if __name__ == '__main__':
@@ -36,6 +62,7 @@ def test(s):
         assert s[0] != 'z'
         assert s[4] != 'm'
         assert s[7] != 't'
+        assert "HAMS" in s
     '''
     test2 = '''\
 if s[0] == 'a':
@@ -86,7 +113,7 @@ if len(s) < 10:
         assert s[2] == 'g'
     '''
 
-    cs = ConstraintSolver(code=ast.parse(test1))
+    """cs = ConstraintSolver(code=ast.parse(test1))
     cs.grammar['<sub>'] = ["test"]
     #print(cs.grammar['<element0>'][0])
     print(cs.grammar['<element0>'][0]+ '<sub>')
@@ -101,9 +128,9 @@ if len(s) < 10:
         inp = fuzz.fuzz()
         if solver.check(inp):
             printi.add(inp)
-    print(printi)
-    #fuzziman = FuzzerOfConstraints
-    #fuzziman.gimmeResults(fuzziman, ast.parse(test1.py))
+    print(printi)"""
+    fuzziman = FuzzerOfConstraints
+    fuzziman.gimmeResults(fuzziman, ast.parse(test1))
     #fuzziman.gimmeResults(fuzziman, ast.parse(test2))
     #fuzziman.gimmeResults(fuzziman, ast.parse(test3))
     #fuzziman.gimmeResults(fuzziman, ast.parse(testi))

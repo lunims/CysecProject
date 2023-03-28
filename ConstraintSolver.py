@@ -17,14 +17,14 @@ class ConstraintSolver:
         self.constraint = ''
         ti = TypeInferer()
         const = ti.entrance(code)
-        self.grammar = self.entrance(const)
+        self.grammar, self.cont, self.notcont = self.entrance(const)
 
     def entrance(self, constraint: Constraint):
         clear, dic = self.cleanUp(constraint, dict())
         dnf = self.to_dnf(clear)
-        res = self.reg(dnf)
+        res, cont, notcont = self.reg(dnf)
         res = self.cleanGrammar(self.cleanGrammar(res))
-        return res
+        return res, cont, notcont
 
     def cleanGrammar(self, gr: Grammar):
         he = list()
@@ -72,8 +72,22 @@ class ConstraintSolver:
                 return cons, dic
             case Compare():
                 match cons.lhs:
-                    case ConstStr, ConstInt, ConstBool:
-                        if isinstance(cons.rhs, ConstStr) or isinstance(cons.rhs, ConstInt) or isinstance(cons.rhs, ConstBool):
+                    case ConstStr():
+                        if isinstance(cons.rhs, ConstStr):
+                            return cons, dic
+                        he = cons.lhs
+                        cons.lhs = cons.rhs
+                        cons.rhs = he
+                        return self.cleanUp(cons, dic)
+                    case ConstBool():
+                        if isinstance(cons.rhs, ConstBool):
+                            return cons, dic
+                        he = cons.lhs
+                        cons.lhs = cons.rhs
+                        cons.rhs = he
+                        return self.cleanUp(cons, dic)
+                    case ConstInt():
+                        if isinstance(cons.rhs, ConstInt):
                             return cons, dic
                         he = cons.lhs
                         cons.lhs = cons.rhs
@@ -132,6 +146,8 @@ class ConstraintSolver:
 
     def reg(self, se: {}):
         constraintsCollecting = list()
+        contCollect = list()
+        notcontCollect = list()
         digit = list()
         for i in range(32, 127):
             digit.append(chr(i))
@@ -147,13 +163,17 @@ class ConstraintSolver:
         for s in se:
             rdic, rndic, rset, startend= self.collectConstraint(s)
             if self.build_GrammarExpression(rdic, rndic, rset, startend, elementcount, digit) is not None:
-                gramdict, constraint = self.build_GrammarExpression(rdic, rndic, rset, startend, elementcount, digit)
+                gramdict, constraint, cont, notcont = self.build_GrammarExpression(rdic, rndic, rset, startend, elementcount, digit)
                 res = gramdict.get("<string>")
                 grammar["<string>"].append(res)
                 del gramdict["<string>"]
                 grammar.update(gramdict)
                 elementcount += 1
                 constraintsCollecting.append(constraint)
+                if len(cont) > 1:
+                    contCollect.append(cont)
+                if len(notcont) > 1:
+                    notcontCollect.append(notcont)
         flag = False
         for i in constraintsCollecting:
             if i != '':
@@ -161,20 +181,30 @@ class ConstraintSolver:
                 if flag:
                     self.constraint += ' and '
                 flag = True
-        return grammar
+        return grammar, contCollect, notcontCollect
 
     def build_GrammarExpression(self, dic: dict(), ndic: dict(), se: set(), startend: set(), name: int, digit: list()):
         digit = list()
         for i in range(32, 127):
             digit.append(chr(i))
         resgram: Grammar = {
-            "<string>": "<element" + str(name) + ">",
+            "<string>": "element" + str(name) + "<element" + str(name) + ">",
             "<element" + str(name) + ">": [],
             "<digits>": ["<digit>""<digits>", "<digit>"],
             "<digitsU>": ["", "<digits>"],
             "<digit>": digit,
             "<digitU>": ["", "<digit>"],
         }
+        cont = list()
+        cont.append(str(name))
+        notcont = list()
+        notcont.append(str(name))
+        for secont in se:
+            match secont[0]:
+                case 'in':
+                    cont.append(secont[1])
+                case 'not in':
+                    notcont.append(secont[1])
         maxidic = 0
         maxindic = 0
         st = ''
@@ -300,7 +330,8 @@ class ConstraintSolver:
             if lower <= i <= upper:
                 cons.append("not(str.len(<element" + str(name) + ">) = " + str(i) + ")")
         cons = " and ".join(cons)
-        return resgram, cons
+        return resgram, cons, cont, notcont
+
 
     def buildNegativeWithGrammar(self, resgram: Grammar, element: list(), negse: set(), name: int):
         if "<digits>" in element or "<digitsU>" in element:
@@ -401,7 +432,10 @@ class ConstraintSolver:
                         namecount += 1
                         for e in element:
                             newele.append(e)
-                        for d in resgram[element[s]]:
+                        zwischenliste = resgram[element[s]]
+                        if len(zwischenliste) == 2:
+                            zwischenliste = resgram[zwischenliste[1]]
+                        for d in zwischenliste:
                             newdigi.append(d)
                         newdigi.remove(ns[s])
                         newele[s] = newdigname
@@ -427,7 +461,10 @@ class ConstraintSolver:
                         namecount += 1
                         for el in element:
                             newele.append(el)
-                        for d in resgram[element[len(element) - 1 - e]]:
+                        zwischenliste = resgram[element[len(element) - 1 - e]]
+                        if len(zwischenliste) == 2:
+                            zwischenliste = resgram[zwischenliste[1]]
+                        for d in zwischenliste:
                             newdigi.append(d)
                         newdigi.remove(ne[e])
                         newele[len(element) - 1 - e] = newdigname
@@ -512,6 +549,10 @@ class ConstraintSolver:
                     resset.add(('<=', s[1]))
                 case '>=':
                     resset.add(('<', s[1]))
+                case 'not in':
+                    resset.add(('in', s[1]))
+                case 'in':
+                    resset.add('not in', s[1])
         for ste in startend:
             match ste[0]:
                 case 'sf':
@@ -542,8 +583,32 @@ class ConstraintSolver:
                     return self.evalEquals(comp.rhs)
                 case ast.NotEq():
                     return self.evalNotEquals(comp.rhs)
+                case ast.In():
+                    return self.evalContains(comp.rhs)
+                case ast.NotIn():
+                    return self.evalNotContains(comp.rhs)
                 case _:
                     raise NotImplementedError
+        elif isinstance(comp.lhs, ConstStr):
+            match comp.operator.operator:
+                case ast.In():
+                    if isinstance(comp.rhs, Var):
+                        return self.evalContains(comp.lhs)
+                    else:
+                        raise Exception("Hier fehlt was")
+                case ast.NotIn():
+                    if isinstance(comp.rhs, Var):
+                        return self.evalNotContains(comp.lhs)
+                    else:
+                        raise Exception("Hier fehlt auch was")
+                case _:
+                    raise NotImplementedError
+
+    def evalContains(self, instring: ConstStr):
+        return dict(), dict(), {("in", instring)}, set()
+
+    def evalNotContains(self, notstring: ConstStr):
+        return dict(), dict(), {("not in", notstring)}, set()
 
     def evalEndsWith(self, lhs: Term, rhs: Term, op: Comparator):
         res = set()
