@@ -215,6 +215,14 @@ class TypeInferer(ast.NodeVisitor):
     def visit_BoolOp(self, node: ast.BoolOp):
         left = self.visit(node.values[0])
         right = self.visit(node.values[1])
+        if isinstance(left, Constraintclasses.Call):
+            left = Compare(op=Comparator(op=ast.Eq()),
+                           left=left,
+                           right=ConstBool(val=True))
+        if isinstance(right, Constraintclasses.Call):
+            right = Compare(op=Comparator(op=ast.Eq()),
+                           left=right,
+                           right=ConstBool(val=True))
         op = node.op.__class__.__name__
         res = None
         if len(node.values) > 2:
