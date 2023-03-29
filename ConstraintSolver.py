@@ -1,6 +1,7 @@
 #import isla
 #from isla.solver import ISLaSolver
 import ast
+import copy
 
 from fuzzingbook.GrammarFuzzer import GrammarFuzzer
 from fuzzingbook.Grammars import *
@@ -356,13 +357,14 @@ class ConstraintSolver:
             maxns = 0
             if negs != []:
                 maxns = len(max(negs, key=len))
-            catch = ""
+            catch = None
             if len(element) <= maxns:
                 catch = element[len(element) - 1]
                 element[len(element) - 1] = "<digit>"
             while len(element) < maxns:
                 element.append("<digit>")
-            element.append(catch)
+            if catch is not None:
+                element.append(catch)
             for ns in negs:
                 for s in range(len(ns)):
                     if len(element[s]) == 1:
@@ -388,7 +390,32 @@ class ConstraintSolver:
                         resgram[newdigname] = newdigi
                         resgram[newname] = []
                         resgram[newname].append(''.join(newele))
-            pass #TODO for endswith but very hard
+            if element[len(element) - 1].startswith("<digits"):
+                for ne in nege:
+                    ne = ne[::-1]
+                    for n in range(len(ne)):
+                        newdigi = list()
+                        newele = copy.deepcopy(element)
+                        newname = "<notelement"
+                        newdigname = "<notdigit"
+                        for i in range(namecount):
+                            newname += str(name)
+                            newdigname += str(name)
+                        newname += ">"
+                        newdigname += ">"
+                        namecount += 1
+                        for i in range(32, 127):
+                            newdigi.append(chr(i))
+                        newdigi.remove(ne[n])
+                        for l in range(len(ne)):
+                            if l == n:
+                                newele.append(newdigname)
+                            else:
+                                newele.append("<digit>")
+                        resgram["<element" + str(name) + ">"].append(newname)
+                        resgram[newdigname] = newdigi
+                        resgram[newname] = []
+                        resgram[newname].append(''.join(newele))
         else:
             negs = list()
             nege = list()
@@ -455,7 +482,7 @@ class ConstraintSolver:
                         newdigname = "<notdigit"
                         for i in range(namecount):
                             newname += str(name)
-                            newdigname += ">"
+                            newdigname += str(name)
                         newname += ">"
                         newdigname += ">"
                         namecount += 1
