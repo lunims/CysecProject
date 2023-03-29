@@ -12,25 +12,30 @@ class FuzzerOfConstraints:
         #print(cs.grammar)
         #print(cs.constraint)
         print(cs.cont)
-        #print(cs.notcont)
+        print(cs.notcont)
         fuzz = GrammarFuzzer(cs.grammar)
         newGram = copy.deepcopy(cs.grammar)
         for i in range(len(newGram["<string>"])):
             newGram["<string>"][i] = "<" + newGram["<string>"][i].split("<")[1]
         solver = None
+        #fuzz = GrammarFuzzer(newGram)
+        print(newGram)
         if cs.constraint == '':
             solver = ISLaSolver(newGram)
         else:
             solver = ISLaSolver(newGram, cs.constraint)
-        solver.solve()
-        solver.solve()
+        print(solver.solve())
+        print(solver.solve())
         printi = set()
         for i in range(10000):
             inp = fuzz.fuzz()
+            #print(inp)
+
             nameflag = inp[7]
             conflag = True
             notconflag = True
             inp = inp[8:]
+            #print(inp)
             con = list()
             notcon = list()
             for c in cs.cont:

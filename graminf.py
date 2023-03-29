@@ -6,17 +6,38 @@ import argparse
 from pathlib import Path
 
 
-def fuzzing(grammar: Grammar, constraint: str, size: int):
+def fuzzing(grammar: Grammar, newGram: Grammar, constraint: str, size: int):
     fuzz = GrammarFuzzer(grammar)
-    if constraint == '':
-        solver = ISLaSolver(grammar)
+    if cs.constraint == '':
+        solver = ISLaSolver(newGram)
     else:
-        solver = ISLaSolver(grammar, constraint)
+        solver = ISLaSolver(newGram, constraint)
     printi = set()
     for i in range(size):
         inp = fuzz.fuzz()
-        if solver.check(inp):
-            printi.add(inp)
+        nameflag = inp[7]
+        conflag = True
+        notconflag = True
+        inp = inp[8:]
+        con = list()
+        notcon = list()
+        for c in cs.cont:
+            if c[0] == nameflag:
+                con = c[1:]
+                break
+        for n in cs.notcont:
+            if n[0] == nameflag:
+                notcon = n[1:]
+                break
+        for c in con:
+            if c.value not in inp:
+                conflag = False
+        for n in notcon:
+            if n.value in inp:
+                notconflag = False
+        if conflag and notconflag:
+            if solver.check(inp):
+                printi.add(inp)
     return printi
 
 
@@ -46,6 +67,9 @@ if __name__ == '__main__':
     function_name = function_def.name if function_def else None
 
     cs = ConstraintSolver(code=tree)
+    newGram = copy.deepcopy(cs.grammar)
+    for i in range(len(newGram["<string>"])):
+        newGram["<string>"][i] = "<" + newGram["<string>"][i].split("<")[1]
 
     if c:
         if cs.constraint == '':
@@ -54,12 +78,12 @@ if __name__ == '__main__':
             print(f'Additional ISLa Constraint: {cs.constraint}')
 
     if gr:
-        print(cs.grammar)
+        print(newGram)
 
     out = None
 
     if args.fuzz is not None:
-        out = fuzzing(grammar=cs.grammar, constraint=cs.constraint, size=args.fuzz)
+        out = fuzzing(grammar=cs.grammar, newGram= newGram, constraint=cs.constraint, size=args.fuzz)
         print(f'Generated following set of inputs for function "{function_name}":')
         print(out)
 
