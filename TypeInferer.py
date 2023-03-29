@@ -245,53 +245,7 @@ class TypeInferer(ast.NodeVisitor):
         res = Equal(self.visit(node.target),self.visit(node.value))
         return res
 
-    '''
-    def visit_BinOp(self, node: ast.BinOp): 
-        self.constraints += '('
-        self.visit(node.left)
-        t = ast.dump(node.op)
-        if t == 'Add()':
-            self.constraints += ' + '
-        if t == 'Sub()':
-            self.constraints += ' - '
-        if t == 'Mult()':
-            self.constraints += ' * '
-        if t == 'MatMult()':
-            self.constraints += ' @ '
-        if t == 'Div()':
-            self.constraints += ' / '
-        if t == 'Mod()':
-            self.constraints += ' % '
-        if t == 'Pow()':
-            self.constraints += ' ** '
-        if t == 'LShift()':
-            self.constraints += ' << '
-        if t == 'RShift()':
-            self.constraints += ' >> '
-        if t == 'BitOr()':
-            self.constraints += ' | '
-        if t == 'BitXor()':
-            self.constraints += ' ^ '
-        if t == 'BitAnd()':
-            self.constraints += ' & '
-        if t == 'FloorDiv()':
-            self.constraints += ' // '
-        self.visit(node.right)
-        self.constraints += ')'
-        return None
-        '''
-
     def visit_UnaryOp(self, node: ast.UnaryOp):
-        '''
-        if u == 'Not()':
-            self.constraints += ' not'
-        if u == 'Invert()':
-            self.constraints += ' ~'
-        if u == 'UAdd()':
-            self.constraints += ' +'
-        if u == 'USub()':
-            self.constraints += ' -'
-            '''
         resval = self.visit(node.operand)
         res = Not(resval)
         return res
