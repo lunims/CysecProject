@@ -1,9 +1,12 @@
+import sys
+
 from ConstraintSolver import ConstraintSolver
 from fuzzingbook.GrammarFuzzer import *
 from isla.solver import ISLaSolver
 from Constraintclasses import *
 import argparse
 from pathlib import Path
+import traceback
 
 
 def fuzzing(grammar: Grammar, newGram: Grammar, constraint: str, size: int):
@@ -95,19 +98,28 @@ if __name__ == '__main__':
     if comp:
         if out is None:
             out = fuzzing(grammar=cs.grammar, newGram=newGram, constraint=cs.constraint, size=42)
+            print(f'Generated following set of inputs for function "{function_name}":')
+            print(out)
+            print('')
         codeObject = compile(tree, source_dir, 'exec')
         exec(codeObject)
         function = locals()[function_name]
         num_errors = 0
+        assertionsErrors = 0
         for i in out:
             try:
                 function(i)
+            except AssertionError as a:
+                assertionsErrors += 1
+                num_errors += 1
+                print(f'AssertionError: {a} with input {i}')
             except Exception as e:
                 num_errors += 1
                 print(f'Error: {e} with input:{i}')
         print('')
-        print(f'Ran function "{function_name}" a total number of {len(out)} times')
-        print(f'Erros occured: {num_errors}')
+        print(f'Ran function "{function_name}" a total number of {len(out)} times:')
+        print(f'Errors occurred: {num_errors}')
+        print(f'AssertionsErrors: {assertionsErrors}')
 
     if args.anotherfun:
         target_dir = Path(args.anotherfun)
@@ -121,25 +133,40 @@ if __name__ == '__main__':
 
         tree = ast.parse(source_code)
         funct_def = next((node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)), None)
-        funct_name = function_def.name if function_def else None
+        funct_name = funct_def.name if function_def else None
         if out is None:
             out = fuzzing(grammar=cs.grammar, newGram=newGram, constraint=cs.constraint, size=42)
-        codeObject = compile(tree, source_dir, 'exec')
+            print(f'Generated following set of inputs for function "{function_name}":')
+            print(out)
+            print('')
+        codeObject = compile(tree, target_dir, 'exec')
         exec(codeObject)
-        function = locals()[funct_name]
+        funct = locals()[funct_name]
         num_errors = 0
         assertionsErrors = 0
         for i in out:
             try:
-                function(i)
+                funct(i)
             except AssertionError as a:
                 assertionsErrors += 1
                 num_errors += 1
-                print(f'AssertionErrors: {a} with input {i}')
+                _, _, tb = sys.exc_info()
+                traceback.print_tb(tb)
+                tb_info = traceback.extract_tb(tb)
+                filename, line, func, text = tb_info[-1]
+
+                print('An AssertionError occurred on line {} in statement {}'.format(line, text))
+                print('')
             except Exception as e:
                 num_errors += 1
-                print(f'Error: {e} with input:{i}')
+                _, _, tb = sys.exc_info()
+                traceback.print_tb(tb)
+                tb_info = traceback.extract_tb(tb)
+                filename, line, func, text = tb_info[-1]
+                print('An Error occurred on line {} in statement {}'.format(line, text))
+                print(f'ErrorType: {e}')
+                print('')
         print('')
-        print(f'Ran function "{function_name}" a total number of {len(out)} times')
-        print(f'Errors occured: {num_errors}')
+        print(f'Ran target function "{funct_name}" a total number of {len(out)} times:')
+        print(f'Errors occurred: {num_errors}')
         print(f'AssertionsErrors: {assertionsErrors}')

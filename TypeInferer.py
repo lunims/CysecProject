@@ -25,7 +25,8 @@ class TypeInferer(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef):
         andi = self.visit(node.body[0])
         for n in node.body[1:]:
-            andi =And(left = andi, right = self.visit(n))
+            if self.visit(n) is not None:
+                andi =And(left = andi, right = self.visit(n))
         return andi
 
     def visit_If(self, node: ast.If):
@@ -37,9 +38,11 @@ class TypeInferer(ast.NodeVisitor):
         if len(node.orelse) != 0:
             elsecons = Not(compcons)
         for b in node.body:
-            ifcons = And(ifcons, self.visit(b))
+            if self.visit(b) is not None:
+                ifcons = And(ifcons, self.visit(b))
         for e in node.orelse:
-            elsecons = And(elsecons, self.visit(e))
+            if self.visit(e) is not None:
+                elsecons = And(elsecons, self.visit(e))
         if elsecons is None:
             return ifcons
         else:
@@ -165,7 +168,10 @@ class TypeInferer(ast.NodeVisitor):
 
 
     def visit_Return(self, node: ast.Return):
-        return self.visit(node.value)
+        res = self.visit(node.value)
+        if isinstance(res, Constraintclasses.ConstBool):
+            res = None
+        return res
 
     def visit_Assign(self, node: ast.Assign):
         val = self.visit(node.value)

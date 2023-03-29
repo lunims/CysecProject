@@ -272,7 +272,7 @@ class ConstraintSolver:
                 for i in range(fix):
                     res.append("<digit>")
         else:
-            lower = max(maxidic + 1, lower + 1, maxse)
+            lower = max(maxidic + 1, lower + 1, maxse) #TODO Off by one Error here?
             for i in range(lower):
                 res.append("<digit>")
             if upper != sys.maxsize and upper >= lower:
