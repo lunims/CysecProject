@@ -322,17 +322,3 @@ class TypeInferer(ast.NodeVisitor):
         return None
 
 
-if __name__ == '__main__':
-    teststr = '''\
-def test(s):
-    s = 'b'
-    if s[0] == 'a':
-        assert len(s) == 1
-    else:
-        x = 5
-        s[0] = x
-        assert s[1] == 'b'
-'''
-    ti = TypeInferer()
-    print(ti.entrance(ast.parse(teststr)))
-    print(ti.constraints.dump())

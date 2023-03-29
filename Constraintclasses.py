@@ -121,14 +121,3 @@ class Equal(Constraint):
 
     def dump(self):
         return f'Equal(name={self.name.dump()}, value={self.value.dump()})'
-
-const1 = ConstInt(val= 1)
-const2 = ConstStr(val= 'a')
-var = Var(name= 's')
-cha = CharAt()
-com = Comparator(op= ast.Eq)
-call1 = Call(func= cha, args= [var, const1])
-comp = Compare(op= com, left= call1, right= const2)
-call2 = Call(func= Length(), args=[var, const2])
-comp2 = Compare(op= com, left= call2, right=const1)
-an = And(left= comp, right= comp2)
